@@ -1,0 +1,37 @@
+name: Public Evidence Gateway
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run schema:snapshot
+      - run: npm run build
+        env:
+          TRACEWORK_GATEWAY_RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'unreleased' }}
+      - run: npm run verify:reproducible
+      - run: npm audit --audit-level=high
+      - uses: actions/upload-artifact@v4
+        with:
+          name: canonical-evidence-gateway
+          path: |
+            artifact/tracework-evidence-gateway.canonical.json
+            artifact/SHA256SUMS
+            artifact/release-provenance.json

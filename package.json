@@ -1,0 +1,34 @@
+{
+  "name": "tracework-evidence-gateway",
+  "version": "1.0.0",
+  "description": "The production evidence-ingestion, validation, privacy, canonicalization, and receipt package used by Tracework.",
+  "license": "MPL-2.0",
+  "type": "module",
+  "engines": { "node": ">=22.13.0" },
+  "files": ["dist", "artifact", "scripts/verify-tracework.mjs", "README.md", "LICENSE"],
+  "bin": { "verify-tracework": "scripts/verify-tracework.mjs" },
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    "./provenance": { "types": "./dist/provenance.d.ts", "import": "./dist/provenance.js" }
+  },
+  "scripts": {
+    "clean": "node scripts/clean.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "node scripts/lint.mjs",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "build": "npm run clean && tsc -p tsconfig.build.json && node scripts/build-canonical.mjs",
+    "verify:reproducible": "node scripts/verify-reproducible.mjs",
+    "verify:tracework": "node scripts/verify-tracework.mjs",
+    "schema:snapshot": "node --import tsx scripts/write-schema-snapshot.ts",
+    "pack:release": "npm run build && npm pack"
+  },
+  "dependencies": {
+    "@aws-sdk/client-kms": "3.1112.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.19",
+    "tsx": "4.23.12",
+    "typescript": "5.9.3"
+  }
+}

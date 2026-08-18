@@ -1,0 +1,9 @@
+export const GATEWAY_PACKAGE_VERSION = "1.0.0";
+export const RECONSTRUCTION_PACKET_SCHEMA_VERSION = "2.1.0";
+export const RECONSTRUCTION_PROTOCOL_VERSION = "historical-0.4";
+export const PROVENANCE_SCHEMA_VERSION = "1.0.0";
+export const PRIVACY_CONTRACT_COMPATIBILITY = "1.0.0";
+export const RECEIPT_FORMAT_VERSION = "1.0.0";
+export const KEY_REGISTRY_FORMAT_VERSION = "1.0.0";
+export const CANONICAL_ARTIFACT_FORMAT = "tracework-evidence-gateway-canonical-v1";
+export const GATEWAY_ACCEPTANCE_BRAND = `tracework-evidence-gateway@${GATEWAY_PACKAGE_VERSION}` as const;
