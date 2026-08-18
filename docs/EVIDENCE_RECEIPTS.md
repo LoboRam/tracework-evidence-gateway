@@ -6,7 +6,7 @@ Receipt claims are strictly parsed, deterministically key-sorted JSON encoded as
 
 Production uses an asymmetric Ed25519 key in AWS KMS (`ECC_NIST_EDWARDS25519`, `ED25519_SHA_512`, `MessageType: RAW`). The private key is generated and retained by KMS and is not exported to Tracework. A restricted runtime AWS credential may authorize `kms:Sign` on the exact active key; that credential is security-sensitive even though it is not private key material.
 
-The public AWS signer adapter accepts either an injected KMS client or an explicit narrow runtime credential supplied by proprietary deployment glue. Signature formatting, message type, algorithm selection, receipt canonicalization, key routing, and verification remain in this public package.
+The public AWS signer adapter uses standards-based Web Crypto, `fetch`, and an inspectable AWS Signature Version 4 implementation. Proprietary deployment glue supplies the AWS Region, exact KMS key reference, stable Tracework key ID, and a restricted runtime credential. The adapter submits only the canonical receipt-claims bytes to the AWS KMS `Sign` operation. Signature formatting, request signing, message type, algorithm selection, receipt canonicalization, key routing, and public verification remain in this public package; the KMS private key is never returned.
 
 The public registry supports `active`, `retired`, and `revoked`. Rotation creates a new KMS key. Old receipt signatures remain verifiable with retained public keys. `retired` means the key no longer signs new Tracework receipts. `revoked` means the verifier can still identify the historical signature but must warn that the key is no longer trusted because of a suspected or confirmed security condition.
 

@@ -43,7 +43,7 @@ try {
   releaseTag = process.env.TRACEWORK_GATEWAY_RELEASE_TAG || "unreleased";
 }
 const provenance = {
-  gateway_package_version: "1.0.3",
+  gateway_package_version: "1.0.4",
   public_repository_url: "https://github.com/LoboRam/tracework-evidence-gateway",
   source_commit: sourceCommit,
   release_tag: releaseTag,

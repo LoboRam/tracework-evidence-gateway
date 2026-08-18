@@ -1,6 +1,6 @@
 {
   "name": "tracework-evidence-gateway",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "The production evidence-ingestion, validation, privacy, canonicalization, and receipt package used by Tracework.",
   "license": "MPL-2.0",
   "type": "module",
@@ -23,7 +23,6 @@
     "pack:release": "npm run build && npm pack"
   },
   "dependencies": {
-    "@aws-sdk/client-kms": "3.1112.0",
     "zod": "4.4.3"
   },
   "devDependencies": {
