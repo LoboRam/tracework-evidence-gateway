@@ -21,7 +21,7 @@ async function walk(directory) {
 
 const coreFiles = (await walk(dist))
   .filter((path) => !["provenance.js", "provenance.d.ts"].includes(basename(path)))
-  .sort((left, right) => relative(dist, left).localeCompare(relative(dist, right), "en"));
+  .sort((left, right) => relative(dist, left) < relative(dist, right) ? -1 : relative(dist, left) > relative(dist, right) ? 1 : 0);
 const includedFiles = [];
 for (const path of coreFiles) {
   const bytes = await readFile(path);

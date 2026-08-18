@@ -6,7 +6,8 @@
     "declaration": true,
     "sourceMap": false,
     "declarationMap": false,
-    "removeComments": false
+    "removeComments": false,
+    "newLine": "lf"
   },
   "include": ["src/**/*.ts"],
   "exclude": ["tests", "scripts"]
