@@ -1,7 +1,7 @@
 import { GATEWAY_ACCEPTANCE_BRAND, GATEWAY_PACKAGE_VERSION, PRIVACY_CONTRACT_COMPATIBILITY, PROVENANCE_SCHEMA_VERSION, RECONSTRUCTION_PACKET_SCHEMA_VERSION, RECONSTRUCTION_PROTOCOL_VERSION } from "./constants.js";
 import { canonicalize, normalizeProtocolPayload, sha256Hex } from "./canonical.js";
 import { privacyIssuesFor } from "./privacy.js";
-import { sourceReconstructionPacketSchema, trustedGatewayContextSchema, type SourceReconstructionPacket, type TrustedGatewayContext } from "./schema.js";
+import { sourceCoverageManifestSchema, sourceReconstructionPacketSchema, trustedCoverageContextSchema, trustedGatewayContextSchema, type SourceCoverageManifest, type SourceReconstructionPacket, type TrustedGatewayContext } from "./schema.js";
 
 export type GatewayRejectionCategory =
   | "invalid_trusted_context"
@@ -23,6 +23,7 @@ export type GatewayValidationMetadata = Readonly<{
   provenance_validation: "passed";
   reference_validation: "passed";
 }>;
+type GatewayRejection = Readonly<{ status: "reject"; category: GatewayRejectionCategory; issues: readonly string[] }>;
 
 export type CanonicalAcceptedPacket = Readonly<{
   readonly __tracework_gateway_acceptance: typeof GATEWAY_ACCEPTANCE_BRAND;
@@ -34,9 +35,13 @@ export type CanonicalAcceptedPacket = Readonly<{
 
 export type GatewayResult =
   | Readonly<{ status: "accept"; accepted: CanonicalAcceptedPacket }>
-  | Readonly<{ status: "reject"; category: GatewayRejectionCategory; issues: readonly string[] }>;
+  | GatewayRejection;
 
-function reject(category: GatewayRejectionCategory, issues: readonly string[]): GatewayResult {
+export type CoverageGatewayResult =
+  | Readonly<{ status: "accept"; manifest: SourceCoverageManifest; canonical_manifest: string; accepted_manifest_digest: string }>
+  | GatewayRejection;
+
+function reject(category: GatewayRejectionCategory, issues: readonly string[]): GatewayRejection {
   return { status: "reject", category, issues: [...new Set(issues)].slice(0, 64) };
 }
 
@@ -120,6 +125,23 @@ export async function acceptHistoricalReconstruction(candidate: unknown, trusted
         }),
       }),
     };
+  } catch {
+    return reject("gateway_failure", ["Evidence Gateway failed closed"]);
+  }
+}
+
+export async function acceptSourceCoverageManifest(candidate: unknown, trustedContext: unknown): Promise<CoverageGatewayResult> {
+  try {
+    const contextResult = trustedCoverageContextSchema.safeParse(trustedContext);
+    if (!contextResult.success) return reject("invalid_trusted_context", contextResult.error.issues.map((issue) => issue.path.join(".") || "trusted_context"));
+    const normalized = normalizeProtocolPayload(candidate);
+    const manifestResult = sourceCoverageManifestSchema.safeParse(normalized);
+    if (!manifestResult.success) return reject("invalid_schema", manifestResult.error.issues.map((issue) => `${issue.path.join(".") || "manifest"}: ${issue.message}`));
+    if (manifestResult.data.project_id !== contextResult.data.project_id || manifestResult.data.provider !== contextResult.data.expected_provider) return reject("identity_mismatch", ["Coverage manifest does not match trusted project/provider context"]);
+    const privacyIssues = privacyIssuesFor(manifestResult.data);
+    if (privacyIssues.length) return reject("privacy_rejection", privacyIssues.map((issue) => issue.split(": ").at(-1) ?? "privacy violation"));
+    const canonicalManifest = canonicalize(manifestResult.data);
+    return { status: "accept", manifest: manifestResult.data, canonical_manifest: canonicalManifest, accepted_manifest_digest: await sha256Hex(canonicalManifest) };
   } catch {
     return reject("gateway_failure", ["Evidence Gateway failed closed"]);
   }

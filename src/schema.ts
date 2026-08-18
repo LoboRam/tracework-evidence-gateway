@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PROVENANCE_SCHEMA_VERSION, RECONSTRUCTION_PACKET_SCHEMA_VERSION, RECONSTRUCTION_PROTOCOL_VERSION } from "./constants.js";
+import { PROVENANCE_SCHEMA_VERSION, RECONSTRUCTION_PACKET_SCHEMA_VERSION, RECONSTRUCTION_PROTOCOL_VERSION, SOURCE_COVERAGE_PROTOCOL_VERSION } from "./constants.js";
 
 const safeId = z.string().trim().min(1).max(120).regex(/^[A-Za-z0-9._:-]+$/);
 const shortText = z.string().trim().min(1).max(500);
@@ -68,5 +68,31 @@ export const trustedGatewayContextSchema = z.object({
   provenance_schema_version: z.literal(PROVENANCE_SCHEMA_VERSION),
 }).strict();
 
+export const sourceCoverageManifestSchema = z.object({
+  protocol_version: z.literal(SOURCE_COVERAGE_PROTOCOL_VERSION),
+  project_id: safeId,
+  provider: z.enum(["chatgpt", "claude", "codex"]),
+  coverage: z.enum(["strong", "partial", "limited", "unavailable"]),
+  historical_range: z.object({ start: z.string().trim().max(40).optional(), end: z.string().trim().max(40).optional(), label: z.string().trim().min(1).max(100), precision: z.enum(["exact", "month", "season", "approximate", "unknown"]) }).strict(),
+  candidate_contexts: z.number().int().min(0).max(10_000).nullable(),
+  context_unit: z.enum(["conversations", "chats", "sessions", "threads", "contexts"]),
+  search_tiers_used: z.array(z.enum(["exact_identity", "distinctive_reference", "goal_domain", "semantic"])).min(1).max(4),
+  matched_signals: z.array(z.string().trim().min(1).max(80)).max(20),
+  coverage_notes: z.array(z.string().trim().min(1).max(300)).max(12),
+  limitations: z.array(z.string().trim().min(1).max(300)).max(12),
+  remaining_gaps: z.array(z.string().trim().min(1).max(300)).max(12).default([]),
+  relevant_history_found: z.boolean(),
+  history_may_be_missing: z.boolean(),
+  source_scope_reference: safeId.optional(),
+  searched_at: z.string().datetime({ offset: true }),
+}).strict().superRefine((manifest, context) => {
+  if (!manifest.relevant_history_found && manifest.candidate_contexts && manifest.candidate_contexts > 0) context.addIssue({ code: "custom", path: ["candidate_contexts"], message: "No-history manifests cannot report candidate contexts" });
+  if (manifest.coverage === "unavailable" && manifest.relevant_history_found) context.addIssue({ code: "custom", path: ["coverage"], message: "Unavailable history cannot be marked relevant" });
+});
+
+export const trustedCoverageContextSchema = z.object({ project_id: safeId, expected_provider: z.enum(["chatgpt", "claude", "codex"]), active_recovery_pass_id: safeId, recovery_profile_version: z.string().datetime({ offset: true }) }).strict();
+
 export type SourceReconstructionPacket = z.infer<typeof sourceReconstructionPacketSchema>;
 export type TrustedGatewayContext = z.infer<typeof trustedGatewayContextSchema>;
+export type SourceCoverageManifest = z.infer<typeof sourceCoverageManifestSchema>;
+export type TrustedCoverageContext = z.infer<typeof trustedCoverageContextSchema>;
