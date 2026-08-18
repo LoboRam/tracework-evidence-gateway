@@ -70,7 +70,7 @@ export class AwsKmsReceiptSigner implements ReceiptSigner {
     this.#kmsKeyId = options.kmsKeyId;
     this.#region = options.region;
     this.#credentials = options.credentials;
-    this.#fetch = options.fetch ?? globalThis.fetch;
+    this.#fetch = options.fetch ?? ((input, init) => globalThis.fetch(input, init));
     this.#now = options.now ?? (() => new Date());
   }
 

@@ -1,4 +1,4 @@
-export const GATEWAY_PACKAGE_VERSION = "1.0.4";
+export const GATEWAY_PACKAGE_VERSION = "1.0.5";
 export const SOURCE_COVERAGE_PROTOCOL_VERSION = "recovery-0.1";
 export const RECONSTRUCTION_PACKET_SCHEMA_VERSION = "2.1.0";
 export const RECONSTRUCTION_PROTOCOL_VERSION = "historical-0.4";

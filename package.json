@@ -1,6 +1,6 @@
 {
   "name": "tracework-evidence-gateway",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "The production evidence-ingestion, validation, privacy, canonicalization, and receipt package used by Tracework.",
   "license": "MPL-2.0",
   "type": "module",
