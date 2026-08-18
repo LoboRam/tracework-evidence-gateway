@@ -6,6 +6,7 @@ export type AwsKmsReceiptSignerOptions = Readonly<{
   kmsKeyId: string;
   client?: KMSClient;
   region?: string;
+  credentials?: Readonly<{ accessKeyId: string; secretAccessKey: string; sessionToken?: string }>;
 }>;
 
 export class AwsKmsReceiptSigner implements ReceiptSigner {
@@ -17,7 +18,10 @@ export class AwsKmsReceiptSigner implements ReceiptSigner {
   constructor(options: AwsKmsReceiptSignerOptions) {
     this.keyId = options.keyId;
     this.#kmsKeyId = options.kmsKeyId;
-    this.#client = options.client ?? new KMSClient(options.region ? { region: options.region } : {});
+    this.#client = options.client ?? new KMSClient({
+      ...(options.region ? { region: options.region } : {}),
+      ...(options.credentials ? { credentials: options.credentials } : {}),
+    });
   }
 
   async sign(message: Uint8Array): Promise<Uint8Array> {
