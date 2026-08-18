@@ -792,6 +792,85 @@
             ],
             "additionalProperties": false
           }
+        },
+        "origin_traces": {
+          "maxItems": 160,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "evidence_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120,
+                "pattern": "^[A-Za-z0-9._:-]+$"
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              },
+              "uncertainty": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "low",
+                  "moderate",
+                  "high"
+                ]
+              },
+              "evidence_refs": {
+                "minItems": 1,
+                "maxItems": 24,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120,
+                  "pattern": "^[A-Za-z0-9._:-]+$"
+                }
+              },
+              "concept_key": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120,
+                "pattern": "^[A-Za-z0-9._:-]+$"
+              },
+              "first_observed_as": {
+                "type": "string",
+                "enum": [
+                  "human_input",
+                  "ai_proposal",
+                  "preexisting_context",
+                  "uncertain"
+                ]
+              },
+              "generalized_basis": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "high",
+                  "medium",
+                  "low"
+                ]
+              }
+            },
+            "required": [
+              "evidence_id",
+              "description",
+              "uncertainty",
+              "evidence_refs",
+              "concept_key",
+              "first_observed_as",
+              "generalized_basis",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
         }
       },
       "required": [
@@ -801,7 +880,8 @@
         "decisions",
         "failures_and_pivots",
         "validation_and_outcomes",
-        "capability_evidence"
+        "capability_evidence",
+        "origin_traces"
       ],
       "additionalProperties": false
     },

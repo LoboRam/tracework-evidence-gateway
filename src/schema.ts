@@ -37,6 +37,7 @@ const decisionSchema = z.object({ ...evidenceBase, decision_type: z.enum(["archi
 const pivotSchema = z.object({ ...evidenceBase, previous_direction: mediumText, changed_direction: mediumText, trigger: mediumText }).strict();
 const validationOutcomeSchema = z.object({ ...evidenceBase, validation_method: mediumText, outcome: mediumText }).strict();
 const capabilityEvidenceSchema = z.object({ ...evidenceBase, capability: capabilitySchema, strength: evidenceStrengthSchema, narrative_basis: mediumText }).strict();
+const originTraceSchema = z.object({ ...evidenceBase, concept_key: safeId, first_observed_as: z.enum(["human_input", "ai_proposal", "preexisting_context", "uncertain"]), generalized_basis: mediumText, confidence: z.enum(["high", "medium", "low"]) }).strict();
 
 export const sourceReconstructionPacketSchema = z.object({
   reconstruction_packet_id: safeId,
@@ -49,7 +50,7 @@ export const sourceReconstructionPacketSchema = z.object({
   coverage_perimeter: z.object({ accepted_reconstruction_coverage_snapshot_id: safeId, recovery_pass_ids: z.array(safeId).min(1).max(32), manifest_ids: z.array(safeId).min(1).max(32), earliest_date: historicalDateSchema, latest_date: historicalDateSchema, coverage_confidence: coverageConfidenceSchema, limitations: z.array(limitationText).max(16) }).strict(),
   project_summary: z.object({ description: mediumText, claim_basis: claimBasisSchema }).strict(),
   provenance_index: z.array(provenanceReferenceSchema).min(1).max(240),
-  evidence: z.object({ meaningful_moments: z.array(meaningfulMomentSchema).min(1).max(80), human_observations: z.array(humanObservationSchema).max(160), ai_observations: z.array(aiObservationSchema).max(160), decisions: z.array(decisionSchema).max(120), failures_and_pivots: z.array(pivotSchema).max(80), validation_and_outcomes: z.array(validationOutcomeSchema).max(120), capability_evidence: z.array(capabilityEvidenceSchema).max(80) }).strict(),
+  evidence: z.object({ meaningful_moments: z.array(meaningfulMomentSchema).min(1).max(80), human_observations: z.array(humanObservationSchema).max(160), ai_observations: z.array(aiObservationSchema).max(160), decisions: z.array(decisionSchema).max(120), failures_and_pivots: z.array(pivotSchema).max(80), validation_and_outcomes: z.array(validationOutcomeSchema).max(120), capability_evidence: z.array(capabilityEvidenceSchema).max(80), origin_traces: z.array(originTraceSchema).max(160) }).strict(),
   provider_limitations: z.array(limitationText).max(20),
   privacy_profile: z.object({ redactions_applied: z.array(z.enum(["raw_conversation", "prompt_content", "source_code", "file_content", "credential", "personal_identifier", "private_url", "provider_identifier", "other"])).max(16), owner_opted_in_disclosures: z.array(z.string().trim().min(1).max(240)).max(8) }).strict(),
   provider_provenance: z.object({ provider: providerSchema, packet_generated_at: z.string().datetime({ offset: true }) }).strict(),

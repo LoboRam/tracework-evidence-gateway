@@ -18,7 +18,7 @@ Each privacy-safe reference includes `ref_id`, pass/manifest identifiers, contro
 
 ## Evidence collections
 
-The schema contains meaningful moments, human observations, AI observations, decisions, failures/pivots, validation/outcomes, and capability evidence. Every evidence item has a stable ID and one or more references into the packet provenance index.
+The schema contains meaningful moments, human observations, AI observations, decisions, failures/pivots, validation/outcomes, capability evidence, and structured origin traces. Every evidence item has a stable ID and one or more references into the packet provenance index. Origin traces record only a generalized concept key, its first observed role, a bounded generalized basis, confidence, uncertainty, and provenance references.
 
 ## Controlled vocabularies
 

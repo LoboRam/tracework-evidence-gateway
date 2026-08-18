@@ -43,6 +43,7 @@ export function validPacket() {
       failures_and_pivots: [],
       validation_and_outcomes: [{ evidence_id: "validation_1", description: "The boundary was tested with a synthetic fixture.", uncertainty: "low", evidence_refs: ["ref_1"], validation_method: "Synthetic schema and privacy tests.", outcome: "The fixture passed without raw source material." }],
       capability_evidence: [{ evidence_id: "capability_1", description: "The rejection demonstrated observable tradeoff reasoning.", uncertainty: "moderate", evidence_refs: ["ref_1"], capability: "Tradeoff Reasoning", strength: "Moderate", narrative_basis: "A consequential alternative was rejected against a documented constraint." }],
+      origin_traces: [{ evidence_id: "origin_1", description: "The design boundary first appears as a builder-supplied constraint.", uncertainty: "low", evidence_refs: ["ref_1"], concept_key: "design_boundary", first_observed_as: "human_input", generalized_basis: "The available provider evidence first observes the constraint in builder input.", confidence: "high" }],
     },
     provider_limitations: ["This is synthetic test evidence, not a real project reconstruction."],
     privacy_profile: { redactions_applied: [], owner_opted_in_disclosures: [] },
