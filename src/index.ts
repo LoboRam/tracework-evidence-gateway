@@ -3,5 +3,6 @@ export * from "./canonical.js";
 export * from "./constants.js";
 export * from "./gateway.js";
 export * from "./privacy.js";
+export * from "./project-state.js";
 export * from "./receipts.js";
 export * from "./schema.js";

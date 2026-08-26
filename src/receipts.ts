@@ -7,7 +7,7 @@ const receiptClaimsSchema = z.object({
   receipt_id: z.string().min(1).max(120),
   project_safe_identifier: z.string().min(1).max(120),
   provider: z.string().min(1).max(60),
-  operation: z.enum(["source_coverage", "source_reconstruction", "unified_reconstruction"]),
+  operation: z.enum(["source_coverage", "source_reconstruction", "project_state_reconstruction", "unified_reconstruction"]),
   accepted_at: z.string().datetime({ offset: true }),
   coverage_snapshot_reference: z.string().min(1).max(120).nullable(),
   gateway_package_version: z.string().min(1).max(40),

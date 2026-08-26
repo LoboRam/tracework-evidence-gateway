@@ -43,7 +43,7 @@ try {
   releaseTag = process.env.TRACEWORK_GATEWAY_RELEASE_TAG || "unreleased";
 }
 const provenance = {
-  gateway_package_version: "1.0.5",
+  gateway_package_version: "1.1.0",
   public_repository_url: "https://github.com/LoboRam/tracework-evidence-gateway",
   source_commit: sourceCommit,
   release_tag: releaseTag,
@@ -52,7 +52,10 @@ const provenance = {
   reconstruction_packet_schema_version: "2.1.0",
   reconstruction_protocol_version: "historical-0.4",
   provenance_schema_version: "1.0.0",
-  privacy_contract_compatibility: "1.0.0",
+  project_state_reconstruction_schema_version: "1.0.0",
+  project_state_reconstruction_protocol_version: "project-state-1.0",
+  project_state_fingerprint_algorithm: "tracework.ps.snapshot.sha256-inventory-v1",
+  privacy_contract_compatibility: "2.0.0",
   source_timestamp: sourceTimestamp,
 };
 await writeFile(join(dist, "provenance.js"), `export const GATEWAY_RUNTIME_PROVENANCE = Object.freeze(${JSON.stringify(provenance)});\n`, "utf8");

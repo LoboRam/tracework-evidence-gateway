@@ -2,6 +2,8 @@ import { GATEWAY_ACCEPTANCE_BRAND, GATEWAY_PACKAGE_VERSION, PRIVACY_CONTRACT_COM
 import { canonicalize, normalizeProtocolPayload, sha256Hex } from "./canonical.js";
 import { privacyIssuesFor } from "./privacy.js";
 import { sourceCoverageManifestSchema, sourceReconstructionPacketSchema, trustedCoverageContextSchema, trustedGatewayContextSchema, type SourceCoverageManifest, type SourceReconstructionPacket, type TrustedGatewayContext } from "./schema.js";
+import { projectStateReconstructionPacketSchema, trustedProjectStateContextSchema, type ProjectStateReconstructionPacket, type TrustedProjectStateContext } from "./project-state.js";
+import { PROJECT_STATE_RECONSTRUCTION_PROTOCOL_VERSION, PROJECT_STATE_RECONSTRUCTION_SCHEMA_VERSION } from "./constants.js";
 
 export type GatewayRejectionCategory =
   | "invalid_trusted_context"
@@ -40,6 +42,25 @@ export type GatewayResult =
 export type CoverageGatewayResult =
   | Readonly<{ status: "accept"; manifest: SourceCoverageManifest; canonical_manifest: string; accepted_manifest_digest: string }>
   | GatewayRejection;
+
+export type CanonicalAcceptedProjectStatePacket = Readonly<{
+  readonly __tracework_gateway_acceptance: typeof GATEWAY_ACCEPTANCE_BRAND;
+  readonly packet: ProjectStateReconstructionPacket;
+  readonly canonical_packet: string;
+  readonly accepted_packet_digest: string;
+  readonly validation_metadata: Readonly<{
+    gateway_package_version: string;
+    project_state_reconstruction_schema_version: string;
+    project_state_reconstruction_protocol_version: string;
+    privacy_contract_compatibility: string;
+    normalized: true;
+    privacy_scan: "passed";
+    provenance_validation: "passed";
+    snapshot_validation: "passed";
+  }>;
+}>;
+
+export type ProjectStateGatewayResult = Readonly<{ status: "accept"; accepted: CanonicalAcceptedProjectStatePacket }> | GatewayRejection;
 
 function reject(category: GatewayRejectionCategory, issues: readonly string[]): GatewayRejection {
   return { status: "reject", category, issues: [...new Set(issues)].slice(0, 64) };
@@ -142,6 +163,34 @@ export async function acceptSourceCoverageManifest(candidate: unknown, trustedCo
     if (privacyIssues.length) return reject("privacy_rejection", privacyIssues.map((issue) => issue.split(": ").at(-1) ?? "privacy violation"));
     const canonicalManifest = canonicalize(manifestResult.data);
     return { status: "accept", manifest: manifestResult.data, canonical_manifest: canonicalManifest, accepted_manifest_digest: await sha256Hex(canonicalManifest) };
+  } catch {
+    return reject("gateway_failure", ["Evidence Gateway failed closed"]);
+  }
+}
+
+export async function acceptProjectStateReconstruction(candidate: unknown, trustedContext: unknown): Promise<ProjectStateGatewayResult> {
+  try {
+    const contextResult = trustedProjectStateContextSchema.safeParse(trustedContext);
+    if (!contextResult.success) return reject("invalid_trusted_context", contextResult.error.issues.map((issue) => issue.path.join(".") || "trusted_context"));
+    const normalized = normalizeProtocolPayload(candidate);
+    const packetResult = projectStateReconstructionPacketSchema.safeParse(normalized);
+    if (!packetResult.success) return reject("invalid_schema", packetResult.error.issues.map((issue) => `${issue.path.join(".") || "packet"}: ${issue.message}`));
+    const packet = packetResult.data; const context: TrustedProjectStateContext = contextResult.data; const issues: string[] = [];
+    if (packet.project_id !== context.project_id) issues.push("project_id does not match trusted context");
+    if (packet.evidence_source.source_id !== context.evidence_source_id) issues.push("evidence source does not match trusted context");
+    if (packet.evidence_source.source_system !== context.source_system) issues.push("source system does not match the inspected workspace attachment");
+    if (packet.analyst.provider !== context.analyst.provider || packet.analyst.surface !== context.analyst.surface || (packet.analyst.model ?? null) !== (context.analyst.model ?? null)) issues.push("analyst attestation does not match trusted request context");
+    if (issues.length) return reject("identity_mismatch", issues);
+    const privacyIssues = privacyIssuesFor(packet, "project_state_packet");
+    if (privacyIssues.length) return reject("privacy_rejection", privacyIssues.map((issue) => issue.split(": ").at(-1) ?? "privacy violation"));
+    const canonicalPacket = canonicalize(packet);
+    return { status: "accept", accepted: Object.freeze({
+      __tracework_gateway_acceptance: GATEWAY_ACCEPTANCE_BRAND,
+      packet,
+      canonical_packet: canonicalPacket,
+      accepted_packet_digest: await sha256Hex(canonicalPacket),
+      validation_metadata: Object.freeze({ gateway_package_version: GATEWAY_PACKAGE_VERSION, project_state_reconstruction_schema_version: PROJECT_STATE_RECONSTRUCTION_SCHEMA_VERSION, project_state_reconstruction_protocol_version: PROJECT_STATE_RECONSTRUCTION_PROTOCOL_VERSION, privacy_contract_compatibility: PRIVACY_CONTRACT_COMPATIBILITY, normalized: true, privacy_scan: "passed", provenance_validation: "passed", snapshot_validation: "passed" }),
+    }) };
   } catch {
     return reject("gateway_failure", ["Evidence Gateway failed closed"]);
   }

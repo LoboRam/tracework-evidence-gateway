@@ -15,6 +15,12 @@ The production historical-reconstruction path is:
 
 Private Tracework may authenticate, authorize, rate-limit, look up state, and persist accepted output. It must not contain a parallel reconstruction schema, privacy scanner, canonicalizer, or accepted-packet generator.
 
+## Project State intake
+
+Project State is a separate first-class evidence class for an inspected local or mounted project workspace. Its evidence identity is `source_type: project_state` and `source_system: local_project_workspace`; the analyst attestation and authenticated Tracework connection are separate provenance. `acceptProjectStateReconstruction` applies a strict Project State 1.0 packet schema, identity binding, privacy scan, reference validation, and deterministic canonicalization. It does not reinterpret the evidence as AI history or repository history.
+
+The packet contains sanitized findings and safe bounded component references only. Raw source, file contents, credentials, absolute local paths, repository internals, and unsupported deployment or usage claims are outside the contract. A snapshot fingerprint identifies the inspection point without storing the workspace. Later packets may point to the prior root fingerprint while the earlier packet remains immutable.
+
 ## Trust boundary
 
 `TrustedGatewayContext` is server-derived. It binds the authenticated request to a project name/ID, expected provider, accepted Reconstruction Coverage Snapshot, allowed pass/manifest IDs, and protocol versions. Browser fields and source-supplied identity do not establish this context.

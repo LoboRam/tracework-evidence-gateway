@@ -2,6 +2,8 @@
 
 The machine-readable snapshot is generated at `schema/reconstruction-packet-2.1.0.schema.json`.
 
+Project State is a separate evidence class with its own strict machine-readable contract at `schema/project-state-reconstruction-1.0.0.schema.json`. It does not alter the existing ChatGPT, Claude, Codex, or GitHub reconstruction formats.
+
 The package also exports the strict `recovery-0.1` Source Coverage Manifest schema and its trusted-context acceptance gateway. Production coverage ingestion uses that exported schema and canonical result rather than a private duplicate.
 
 The runtime packet is strict: undocumented top-level and nested properties are rejected. The documentation-only `_enum_reference` object is not accepted.
