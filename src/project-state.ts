@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   PROJECT_STATE_FINGERPRINT_ALGORITHM,
+  PROTOCOL_MAX_LINE_LENGTH,
   PROJECT_STATE_RECONSTRUCTION_PROTOCOL_VERSION,
   PROJECT_STATE_RECONSTRUCTION_SCHEMA_VERSION,
 } from "./constants.js";
@@ -8,8 +9,8 @@ import { canonicalize, sha256Hex } from "./canonical.js";
 
 const safeId = z.string().trim().min(1).max(120).regex(/^[A-Za-z0-9._:-]+$/);
 const sha256 = z.string().regex(/^[a-f0-9]{64}$/);
-const singleLine = (max: number) => z.string().trim().min(1).max(max).refine((value) => !/[\r\n]/.test(value), "must be a single sanitized line");
-const safeFindingText = singleLine(1_200).refine((value) => !/[{};]|=>|```/.test(value), "must be a generalized finding, not source code");
+const singleLine = (max: number = PROTOCOL_MAX_LINE_LENGTH) => z.string().trim().min(1).max(Math.min(max, PROTOCOL_MAX_LINE_LENGTH)).refine((value) => !/[\r\n]/.test(value), "must be a single sanitized line");
+const safeFindingText = singleLine().refine((value) => !/[{};]|=>|```/.test(value), "must be a generalized finding, not source code");
 const sensitivePathPart = /^(?:\.env(?:\..*)?|\.git-credentials|\.npmrc|\.pypirc|id_(?:rsa|dsa|ecdsa|ed25519)|credentials?|secrets?|tokens?|private[_-]?key)(?:\.[^/]*)?$/i;
 
 export const projectStateRelativePathSchema = z.string().trim().min(1).max(300).refine((value) => {
@@ -75,7 +76,7 @@ export const projectStateReconstructionPacketSchema = z.object({
       excluded_categories: z.array(z.enum(["credentials_and_secrets", "version_control_internals", "dependency_caches", "unreadable_entries", "outside_authorized_scope", "binary_contents"])).min(1).max(6),
       symlink_policy: z.enum(["do_not_follow", "follow_within_authorized_root"]),
       hidden_files_policy: z.enum(["include_except_sensitive", "exclude_all"]),
-      limitations: z.array(singleLine(500)).max(16),
+      limitations: z.array(singleLine()).max(16),
     }).strict(),
   }).strict(),
   summary: safeFindingText,
@@ -87,7 +88,7 @@ export const projectStateReconstructionPacketSchema = z.object({
     state_classification: projectStateStateClassificationSchema,
     confidence: z.enum(["high", "medium", "low"]),
     provenance_refs: z.array(safeId).min(1).max(32),
-    limitations: z.array(singleLine(500)).max(8),
+    limitations: z.array(singleLine()).max(8),
     production_status: z.literal("not_established"),
   }).strict()).min(1).max(160),
   provenance_index: z.array(z.object({
@@ -99,7 +100,7 @@ export const projectStateReconstructionPacketSchema = z.object({
     observation_basis: projectStateObservationBasisSchema,
     directness: z.enum(["direct_observation", "inferred_relationship"]),
     observed_at: z.string().datetime({ offset: true }),
-    limitations: z.array(singleLine(500)).max(8),
+    limitations: z.array(singleLine()).max(8),
   }).strict()).min(1).max(320),
   analyst: projectStateAnalystSchema,
   privacy: z.object({

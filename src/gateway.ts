@@ -124,7 +124,7 @@ export async function acceptHistoricalReconstruction(candidate: unknown, trusted
     const referenceIssues = validateReferences(packetResult.data);
     if (referenceIssues.length) return reject("reference_integrity", referenceIssues);
     const privacyIssues = privacyIssuesFor(packetResult.data);
-    if (privacyIssues.length) return reject("privacy_rejection", privacyIssues.map((issue) => issue.split(": ").at(-1) ?? "privacy violation"));
+    if (privacyIssues.length) return reject("privacy_rejection", privacyIssues);
     const canonicalPacket = canonicalize(packetResult.data);
     return {
       status: "accept",
@@ -160,7 +160,7 @@ export async function acceptSourceCoverageManifest(candidate: unknown, trustedCo
     if (!manifestResult.success) return reject("invalid_schema", manifestResult.error.issues.map((issue) => `${issue.path.join(".") || "manifest"}: ${issue.message}`));
     if (manifestResult.data.project_id !== contextResult.data.project_id || manifestResult.data.provider !== contextResult.data.expected_provider) return reject("identity_mismatch", ["Coverage manifest does not match trusted project/provider context"]);
     const privacyIssues = privacyIssuesFor(manifestResult.data);
-    if (privacyIssues.length) return reject("privacy_rejection", privacyIssues.map((issue) => issue.split(": ").at(-1) ?? "privacy violation"));
+    if (privacyIssues.length) return reject("privacy_rejection", privacyIssues);
     const canonicalManifest = canonicalize(manifestResult.data);
     return { status: "accept", manifest: manifestResult.data, canonical_manifest: canonicalManifest, accepted_manifest_digest: await sha256Hex(canonicalManifest) };
   } catch {
@@ -182,7 +182,7 @@ export async function acceptProjectStateReconstruction(candidate: unknown, trust
     if (packet.analyst.provider !== context.analyst.provider || packet.analyst.surface !== context.analyst.surface || (packet.analyst.model ?? null) !== (context.analyst.model ?? null)) issues.push("analyst attestation does not match trusted request context");
     if (issues.length) return reject("identity_mismatch", issues);
     const privacyIssues = privacyIssuesFor(packet, "project_state_packet");
-    if (privacyIssues.length) return reject("privacy_rejection", privacyIssues.map((issue) => issue.split(": ").at(-1) ?? "privacy violation"));
+    if (privacyIssues.length) return reject("privacy_rejection", privacyIssues);
     const canonicalPacket = canonicalize(packet);
     return { status: "accept", accepted: Object.freeze({
       __tracework_gateway_acceptance: GATEWAY_ACCEPTANCE_BRAND,

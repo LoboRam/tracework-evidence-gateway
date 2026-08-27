@@ -1,4 +1,4 @@
-import { PROVENANCE_SCHEMA_VERSION, RECONSTRUCTION_PACKET_SCHEMA_VERSION, RECONSTRUCTION_PROTOCOL_VERSION } from "../src/constants.js";
+import { PROJECT_STATE_FINGERPRINT_ALGORITHM, PROJECT_STATE_RECONSTRUCTION_PROTOCOL_VERSION, PROJECT_STATE_RECONSTRUCTION_SCHEMA_VERSION, PROVENANCE_SCHEMA_VERSION, RECONSTRUCTION_PACKET_SCHEMA_VERSION, RECONSTRUCTION_PROTOCOL_VERSION } from "../src/constants.js";
 
 export function validContext() {
   return {
@@ -52,3 +52,53 @@ export function validPacket() {
 }
 
 export function clone<T>(value: T): T { return structuredClone(value); }
+
+export type AnalystProvider = "chatgpt" | "claude" | "codex" | "other";
+
+export const PROJECT_STATE_INSPECTED_AT = "2026-08-25T12:00:00.000Z";
+
+export function generalizedProse(length: number): string {
+  let output = "the inspected ";
+  while (output.length < length) output += "workspace ";
+  return `${output.slice(0, length - 1).replace(/ $/, "w")}.`;
+}
+
+export function projectStateAnalyst(provider: AnalystProvider) {
+  return { provider, surface: "Generic local analyst", model: "generic-analyst-model" } as const;
+}
+
+export function projectStateContext(provider: AnalystProvider) {
+  return { project_id: "project_test", evidence_source_id: "evidence_source_workspace", source_system: "local_project_workspace", analyst: projectStateAnalyst(provider) } as const;
+}
+
+export function projectStatePacket(provider: AnalystProvider) {
+  const observedAt = PROJECT_STATE_INSPECTED_AT;
+  return {
+    packet_id: "project_state_packet_generic",
+    project_state_reconstruction_schema_version: PROJECT_STATE_RECONSTRUCTION_SCHEMA_VERSION,
+    project_state_reconstruction_protocol_version: PROJECT_STATE_RECONSTRUCTION_PROTOCOL_VERSION,
+    project_id: "project_test",
+    evidence_source: { architecture_version: 1, source_id: "evidence_source_workspace", source_type: "project_state", source_system: "local_project_workspace", analyst_provider: null },
+    inspection: {
+      inspection_id: "inspection_generic",
+      inspected_at: observedAt,
+      workspace_handle: "workspace_opaque_generic",
+      root_label: "Generic workspace",
+      inspection_method: "mounted_project_workspace",
+      snapshot: { fingerprint_algorithm: PROJECT_STATE_FINGERPRINT_ALGORITHM, root_fingerprint: "1".repeat(64), scope_fingerprint: "2".repeat(64), path_set_fingerprint: "3".repeat(64), inventory_fingerprint: "4".repeat(64), fingerprinted_file_count: 4, fingerprinted_directory_count: 2, fingerprinted_total_bytes: 2048, previous_root_fingerprint: null },
+      scope: { basis: "project_root", excluded_categories: ["credentials_and_secrets", "version_control_internals", "dependency_caches"], symlink_policy: "do_not_follow", hidden_files_policy: "include_except_sensitive", limitations: ["Dependency caches were excluded from inspection and fingerprinting."] },
+    },
+    summary: "The inspected workspace declares one reachable entry point, a configured pipeline, and a separate test package.",
+    findings: [
+      { finding_id: "finding_entry", category: "project_entry_point", statement: "The declared package start command reaches a single application entry point.", directness: "direct_observation", state_classification: "active_reachable", confidence: "high", provenance_refs: ["ref_manifest", "ref_entry"], limitations: [], production_status: "not_established" },
+      { finding_id: "finding_unreferenced", category: "major_module_or_component", statement: "A sibling module is present but no configured profile references it, so its reachability was not established.", directness: "inferred_architecture", state_classification: "present_reachability_unknown", confidence: "medium", provenance_refs: ["ref_module"], limitations: ["Reachability was assessed from manifest and reference signals within the bounded scope."], production_status: "not_established" },
+    ],
+    provenance_index: [
+      { ref_id: "ref_manifest", component_id: "package_manifest", component_kind: "package", relative_path: "package.json", content_fingerprint: "5".repeat(64), observation_basis: "manifest_or_configuration", directness: "direct_observation", observed_at: observedAt, limitations: [] },
+      { ref_id: "ref_entry", component_id: "application_entry", component_kind: "entry_point", relative_path: "src/index.ts", content_fingerprint: "6".repeat(64), observation_basis: "entry_point_reachability", directness: "direct_observation", observed_at: observedAt, limitations: [] },
+      { ref_id: "ref_module", component_id: "sibling_module", component_kind: "module", relative_path: "src/sibling.ts", content_fingerprint: "7".repeat(64), observation_basis: "import_or_reference_graph", directness: "inferred_relationship", observed_at: observedAt, limitations: [] },
+    ],
+    analyst: { ...projectStateAnalyst(provider), inspected_at: observedAt },
+    privacy: { raw_source_code_included: false, file_contents_included: false, credentials_or_secrets_included: false, absolute_paths_included: false, sanitized_findings_only: true, cryptographic_fingerprints_only: true },
+  };
+}

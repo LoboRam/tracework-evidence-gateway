@@ -1,4 +1,4 @@
-# Project State Reconstruction 1.0
+# Project State Reconstruction Schema 1.0.1
 
 Project State establishes what a local project workspace contains at one inspection point. It is independent from AI conversation history and GitHub history. An AI may perform the inspection, but the evidence source remains the workspace.
 
@@ -14,9 +14,17 @@ Project State establishes what a local project workspace contains at one inspect
 
 The packet has no file-content field. Findings are bounded single-line generalizations. Provenance may contain safe project-relative paths, safe component IDs, observation type, and SHA-256 content fingerprints. Absolute paths, path traversal, credential-bearing filenames, raw source, file contents, credentials, repository internals, and opaque blobs are rejected. Credential/secret files and version-control internals must be excluded from both inspection and fingerprint input.
 
+## Field bounds
+
+Every sanitized single-line field accepts at most 420 characters. That is the same ceiling the privacy scanner applies to any one line, so the published schema bound and the accepted-content boundary are the same number: a packet that satisfies the schema is never rejected for line size afterwards. Over-length prose is a schema error naming the field and the limit, not a privacy rejection.
+
+Length is measured after canonical normalization, which the gateway applies before both schema validation and privacy scanning: NFKC, CRLF and CR to LF, runs of tabs and spaces to one space, and trimmed ends. Analysts should normalize the same way before measuring, or stay clear of the boundary.
+
+A generalization that will not fit is split across findings. Findings are bounded generalizations, not prose containers, and `findings` accepts up to 160 entries.
+
 ## Snapshot fingerprint
 
-`tracework.ps.snapshot.sha256-merkle-v1` is deterministic and scope-bound:
+`tracework.ps.snapshot.sha256-inventory-v1` is deterministic and scope-bound:
 
 1. The local inspector hashes each authorized, non-sensitive file with SHA-256. Raw bytes remain local.
 2. Entries are normalized to safe forward-slash project-relative paths and sorted by path.
