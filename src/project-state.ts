@@ -9,11 +9,11 @@ import { canonicalize, sha256Hex } from "./canonical.js";
 
 const safeId = z.string().trim().min(1).max(120).regex(/^[A-Za-z0-9._:-]+$/);
 const sha256 = z.string().regex(/^[a-f0-9]{64}$/);
-const singleLine = (max: number = PROTOCOL_MAX_LINE_LENGTH) => z.string().trim().min(1).max(Math.min(max, PROTOCOL_MAX_LINE_LENGTH)).refine((value) => !/[\r\n]/.test(value), "must be a single sanitized line");
+const singleLine = (max: number = PROTOCOL_MAX_LINE_LENGTH) => z.string().trim().min(1).max(Math.min(max, PROTOCOL_MAX_LINE_LENGTH)).regex(/^[^\r\n\u2028\u2029]+$/, "must be a single sanitized line");
 const generalizedNarrative = singleLine();
 const sensitivePathPart = /^(?:\.(?:git|hg|svn)|\.env(?:\..*)?|\.git-credentials|\.npmrc|\.pypirc|id_(?:rsa|dsa|ecdsa|ed25519)|credentials?|secrets?|tokens?|private[_-]?key)(?:\.[^/]*)?$/i;
 
-export const projectStateRelativePathSchema = z.string().trim().min(1).max(300).refine((value) => {
+export const projectStateRelativePathSchema = z.string().trim().min(1).max(300).regex(/^[^\r\n\u2028\u2029]+$/, "must not contain line breaks").refine((value) => {
   if (value.includes("\\") || value.startsWith("/") || /^[A-Za-z]:/.test(value)) return false;
   const parts = value.split("/");
   return parts.every((part) => part && part !== "." && part !== ".." && !sensitivePathPart.test(part));

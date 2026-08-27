@@ -9,13 +9,13 @@ Tracework production is not wholly open source. Authentication, account/project 
 ## Public contract
 
 - License: [MPL-2.0](LICENSE)
-- Reconstruction Packet Schema: `2.1.0`
+- Reconstruction Packet Schema: `2.1.1`
 - Historical Reconstruction Protocol: `historical-0.4`
 - Provenance Schema: `1.0.0`
-- Project State Reconstruction Schema: `1.0.2`
+- Project State Reconstruction Schema: `1.0.3`
 - Project State Reconstruction Protocol: `project-state-1.0`
 - Snapshot fingerprint algorithm: `tracework.ps.snapshot.sha256-inventory-v1`
-- Privacy-contract compatibility: `2.0.2`
+- Privacy-contract compatibility: `2.0.3`
 - Receipt algorithm: Ed25519, with production signing performed through AWS KMS
 
 See [Architecture](docs/ARCHITECTURE.md), [Schema](docs/SCHEMA.md), [Privacy scanner](docs/PRIVACY_SCANNER.md), [Canonical artifact](docs/REPRODUCIBLE_BUILD.md), and [Evidence Receipts](docs/EVIDENCE_RECEIPTS.md).

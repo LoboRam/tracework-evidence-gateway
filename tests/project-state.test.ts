@@ -60,6 +60,20 @@ test("rejects identity confusion, absolute or secret paths, file content, and pr
   for (const mutate of cases) { const packet: any = structuredClone(validPacket()); mutate(packet); assert.equal((await acceptProjectStateReconstruction(packet, context)).status, "reject"); }
 });
 
+test("relative paths reject every line-break form without echoing the path", async () => {
+  for (const value of ["src/one\ntwo.ts", "src/one\rtwo.ts", "src/one\u2028two.ts", "src/one\u2029two.ts"]) {
+    const candidate: any = structuredClone(validPacket());
+    candidate.provenance_index[0].relative_path = value;
+    const result = await acceptProjectStateReconstruction(candidate, context);
+    assert.equal(result.status, "reject");
+    if (result.status === "reject") {
+      assert.equal(result.category, "invalid_schema");
+      assert.ok(result.issues.some((issue) => issue.startsWith("provenance_index.0.relative_path:")), JSON.stringify(result.issues));
+      assert.ok(result.issues.every((issue) => !issue.includes("one") && !issue.includes("two.ts")), JSON.stringify(result.issues));
+    }
+  }
+});
+
 test("requires explicit uncertainty for experimental, obsolete, and dead classifications", async () => {
   const packet: any = structuredClone(validPacket()); packet.findings[0].category = "dead_code"; packet.findings[0].state_classification = "dead";
   assert.equal((await acceptProjectStateReconstruction(packet, context)).status, "reject");

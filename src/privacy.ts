@@ -37,7 +37,7 @@ export function privacyIssuesFor(value: unknown, root = "payload"): string[] {
   const issues: string[] = [];
   for (const item of collectProtocolStrings(value, root)) {
     if (item.value.length > 180 && /^[A-Za-z0-9+/=_-]+$/.test(item.value) && item.value.length % 4 === 0) issues.push(`${item.path}: suspicious_encoded_blob`);
-    if (item.value.split("\n").some((line) => line.length > PROTOCOL_MAX_LINE_LENGTH)) issues.push(`${item.path}: source_sized_line`);
+    if (item.value.split(/[\r\n\u2028\u2029]/).some((line) => line.length > PROTOCOL_MAX_LINE_LENGTH)) issues.push(`${item.path}: source_sized_line`);
     if (looksLikeSourceCode(item.value)) issues.push(`${item.path}: likely_source_code`);
     if (looksLikeSingleLineFilePayload(item.value)) issues.push(`${item.path}: raw_file_payload`);
     for (const [pattern, category] of forbiddenPatterns) if (pattern.test(item.value)) issues.push(`${item.path}: ${category}`);

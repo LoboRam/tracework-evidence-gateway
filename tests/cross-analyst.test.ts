@@ -95,17 +95,7 @@ test("every public Project State text field has an explicit semantic schema role
     if (value.items) walk(value.items, `${path}[]`);
   };
   walk(schema);
-  assert.deepEqual(unconstrainedByStructure.sort(), [
-    "packet.analyst.model",
-    "packet.analyst.surface",
-    "packet.findings[].limitations[]",
-    "packet.findings[].statement",
-    "packet.inspection.root_label",
-    "packet.inspection.scope.limitations[]",
-    "packet.provenance_index[].limitations[]",
-    "packet.provenance_index[].relative_path",
-    "packet.summary",
-  ]);
+  assert.deepEqual(unconstrainedByStructure, []);
 });
 
 test("normalization precedes the shared length boundary", async () => {
@@ -134,12 +124,12 @@ test("no generalized prose length is schema-legal yet privacy-rejected for line 
 test("a privacy rejection names the offending field and never echoes the rejected value", async () => {
   const marker = "distinctivemarkertoken";
   const packet: any = clone(validPacket());
-  packet.evidence.decisions[0].outcome = `${marker} ${generalizedProse(600)}`;
+  packet.evidence.decisions[0].outcome = `function ${marker}(input){ return input.map(item => item.value); }`;
   const result = await acceptHistoricalReconstruction(packet, validContext());
   assert.equal(result.status, "reject");
   if (result.status === "reject") {
     assert.equal(result.category, "privacy_rejection");
-    assert.ok(result.issues.includes("payload.evidence.decisions[0].outcome: source_sized_line"), JSON.stringify(result.issues));
+    assert.ok(result.issues.includes("payload.evidence.decisions[0].outcome: likely_source_code"), JSON.stringify(result.issues));
     for (const issue of result.issues) {
       assert.ok(!issue.includes(marker), issue);
       assert.ok(!issue.includes("workspace"), issue);

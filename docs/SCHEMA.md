@@ -1,12 +1,14 @@
-# Source Reconstruction Packet Schema 2.1.0
+# Source Reconstruction Packet Schema 2.1.1
 
-The machine-readable snapshot is generated at `schema/reconstruction-packet-2.1.0.schema.json`.
+The machine-readable snapshot is generated at `schema/reconstruction-packet-2.1.1.schema.json`.
 
-Project State is a separate evidence class with its own strict machine-readable contract at `schema/project-state-reconstruction-1.0.2.schema.json`. It does not alter the existing ChatGPT, Claude, Codex, or GitHub reconstruction formats.
+Project State is a separate evidence class with its own strict machine-readable contract at `schema/project-state-reconstruction-1.0.3.schema.json`. It does not alter the existing ChatGPT, Claude, Codex, or GitHub reconstruction formats.
 
 The package also exports the strict `recovery-0.1` Source Coverage Manifest schema and its trusted-context acceptance gateway. Production coverage ingestion uses that exported schema and canonical result rather than a private duplicate.
 
 The runtime packet is strict: undocumented top-level and nested properties are rejected. The documentation-only `_enum_reference` object is not accepted.
+
+Every generalized narrative value is one normalized line of at most 420 characters. This includes project summaries, evidence descriptions, outcomes, resulting state, pivot fields, validation methods, narrative bases, generalized origin bases, and every limitation entry. Labels, identifiers, dates, literals, and enums retain their narrower semantic constraints. A longer generalization is split into additional structured evidence items rather than placed in a larger prose field.
 
 ## Identity
 

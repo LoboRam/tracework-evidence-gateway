@@ -8,7 +8,7 @@ The production historical-reconstruction path is:
 2. Private Tracework verifies ownership, provider attachment, active reconstruction state, and the accepted coverage snapshot.
 3. Private Tracework constructs `TrustedGatewayContext` from database state. The candidate packet is not persisted, logged by value, analyzed, or sent to the compiler.
 4. `acceptHistoricalReconstruction(candidate, trustedContext)` in this package validates the candidate.
-5. The gateway strictly parses Schema 2.1.0, validates identity, provider, coverage perimeter, provenance and references, runs the public privacy scanner, and canonicalizes the accepted packet.
+5. The gateway strictly parses Schema 2.1.1, validates identity, provider, coverage perimeter, provenance and references, runs the public privacy scanner, and canonicalizes the accepted packet.
 6. A rejection returns only a safe category and bounded issue labels. It cannot produce canonical accepted evidence.
 7. On acceptance, the private persistence adapter receives only the branded `CanonicalAcceptedPacket` returned by this package.
 8. Tracework persists the canonical packet immutably and creates an Evidence Receipt binding its digest to the released gateway provenance.

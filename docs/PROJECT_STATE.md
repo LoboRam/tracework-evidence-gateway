@@ -1,4 +1,4 @@
-# Project State Reconstruction Schema 1.0.2
+# Project State Reconstruction Schema 1.0.3
 
 Project State establishes what a local project workspace contains at one inspection point. It is independent from AI conversation history and GitHub history. An AI may perform the inspection, but the evidence source remains the workspace.
 
@@ -28,7 +28,7 @@ Every string is normalized and then privacy-scanned, but its schema also reflect
 
 - IDs and workspace handles use a bounded identifier alphabet; protocol versions, categories, policies, classifications, and production status use exact literals or enums.
 - Timestamps are offset date-times. Fingerprints are lowercase SHA-256 hex values.
-- `relative_path` is a safe forward-slash project-relative path. Absolute paths, traversal, credential-bearing names, and version-control internals are prohibited.
+- `relative_path` is a single-line safe forward-slash project-relative path. Line breaks, absolute paths, traversal, credential-bearing names, and version-control internals are prohibited.
 - `root_label`, analyst `surface`, and analyst `model` are bounded single-line labels, not narrative or payload fields.
 - `summary`, finding `statement`, and every inspection, finding, and provenance `limitations` entry are bounded single-line generalized narrative. The same scanner rejects source syntax, fenced code, raw file payloads, transcripts, prompts, diffs, credentials, private URLs, absolute paths, encoded blobs, and other prohibited sensitive shapes in each of these locations.
 
