@@ -10,8 +10,8 @@ import { canonicalize, sha256Hex } from "./canonical.js";
 const safeId = z.string().trim().min(1).max(120).regex(/^[A-Za-z0-9._:-]+$/);
 const sha256 = z.string().regex(/^[a-f0-9]{64}$/);
 const singleLine = (max: number = PROTOCOL_MAX_LINE_LENGTH) => z.string().trim().min(1).max(Math.min(max, PROTOCOL_MAX_LINE_LENGTH)).refine((value) => !/[\r\n]/.test(value), "must be a single sanitized line");
-const safeFindingText = singleLine().refine((value) => !/[{};]|=>|```/.test(value), "must be a generalized finding, not source code");
-const sensitivePathPart = /^(?:\.env(?:\..*)?|\.git-credentials|\.npmrc|\.pypirc|id_(?:rsa|dsa|ecdsa|ed25519)|credentials?|secrets?|tokens?|private[_-]?key)(?:\.[^/]*)?$/i;
+const generalizedNarrative = singleLine();
+const sensitivePathPart = /^(?:\.(?:git|hg|svn)|\.env(?:\..*)?|\.git-credentials|\.npmrc|\.pypirc|id_(?:rsa|dsa|ecdsa|ed25519)|credentials?|secrets?|tokens?|private[_-]?key)(?:\.[^/]*)?$/i;
 
 export const projectStateRelativePathSchema = z.string().trim().min(1).max(300).refine((value) => {
   if (value.includes("\\") || value.startsWith("/") || /^[A-Za-z]:/.test(value)) return false;
@@ -79,11 +79,11 @@ export const projectStateReconstructionPacketSchema = z.object({
       limitations: z.array(singleLine()).max(16),
     }).strict(),
   }).strict(),
-  summary: safeFindingText,
+  summary: generalizedNarrative,
   findings: z.array(z.object({
     finding_id: safeId,
     category: projectStateFindingCategorySchema,
-    statement: safeFindingText,
+    statement: generalizedNarrative,
     directness: z.enum(["direct_observation", "inferred_architecture", "unknown"]),
     state_classification: projectStateStateClassificationSchema,
     confidence: z.enum(["high", "medium", "low"]),

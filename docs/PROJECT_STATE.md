@@ -1,4 +1,4 @@
-# Project State Reconstruction Schema 1.0.1
+# Project State Reconstruction Schema 1.0.2
 
 Project State establishes what a local project workspace contains at one inspection point. It is independent from AI conversation history and GitHub history. An AI may perform the inspection, but the evidence source remains the workspace.
 
@@ -21,6 +21,18 @@ Every sanitized single-line field accepts at most 420 characters. That is the sa
 Length is measured after canonical normalization, which the gateway applies before both schema validation and privacy scanning: NFKC, CRLF and CR to LF, runs of tabs and spaces to one space, and trimmed ends. Analysts should normalize the same way before measuring, or stay clear of the boundary.
 
 A generalization that will not fit is split across findings. Findings are bounded generalizations, not prose containers, and `findings` accepts up to 160 entries.
+
+## Text-field contract
+
+Every string is normalized and then privacy-scanned, but its schema also reflects its role:
+
+- IDs and workspace handles use a bounded identifier alphabet; protocol versions, categories, policies, classifications, and production status use exact literals or enums.
+- Timestamps are offset date-times. Fingerprints are lowercase SHA-256 hex values.
+- `relative_path` is a safe forward-slash project-relative path. Absolute paths, traversal, credential-bearing names, and version-control internals are prohibited.
+- `root_label`, analyst `surface`, and analyst `model` are bounded single-line labels, not narrative or payload fields.
+- `summary`, finding `statement`, and every inspection, finding, and provenance `limitations` entry are bounded single-line generalized narrative. The same scanner rejects source syntax, fenced code, raw file payloads, transcripts, prompts, diffs, credentials, private URLs, absolute paths, encoded blobs, and other prohibited sensitive shapes in each of these locations.
+
+Limitations may still describe uncertainty, exclusions, or constrained inspection in ordinary prose. Terms such as “function,” “class,” or “export,” and normal punctuation, are not rejected by themselves; source-like syntax and payload structure are.
 
 ## Snapshot fingerprint
 

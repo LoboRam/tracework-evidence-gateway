@@ -13,6 +13,27 @@ function withStatement(provider: AnalystProvider, statement: string) {
   return packet;
 }
 
+const projectStateNarrativeTargets = [
+  { name: "summary", path: "summary", set: (packet: any, value: string) => { packet.summary = value; } },
+  { name: "finding statement", path: "findings[0].statement", set: (packet: any, value: string) => { packet.findings[0].statement = value; } },
+  { name: "finding limitation", path: "findings[0].limitations[0]", set: (packet: any, value: string) => { packet.findings[0].limitations = [value]; } },
+  { name: "inspection-scope limitation", path: "inspection.scope.limitations[0]", set: (packet: any, value: string) => { packet.inspection.scope.limitations = [value]; } },
+  { name: "provenance limitation", path: "provenance_index[0].limitations[0]", set: (packet: any, value: string) => { packet.provenance_index[0].limitations = [value]; } },
+] as const;
+
+const prohibitedNarrativeSamples = [
+  ["source code", "function stage(input){ return input.map(item => item.value); }", "likely_source_code"],
+  ["raw file content", `FILE: config.ts ${"export const endpoint = buildEndpoint(); ".repeat(3)}export default endpoint;`, "raw_file_payload"],
+  ["credential", "Observed password=distinctivesecretvalue during inspection.", "credential_assignment"],
+  ["absolute path", "Observed configuration at C:/Users/private/workspace/config.ts.", "absolute_filesystem_path"],
+  ["repository diff", "diff --git a/one.ts b/one.ts index abc123..def456 @@ -1,3 +1,3 @@ removed added", "repository_diff"],
+  ["raw transcript", "User: describe the private module. Assistant: here is the full module implementation.", "raw_transcript"],
+  ["fenced code", "```ts const configured = 1; ```", "source_code_block"],
+  ["private URL", "Configuration referenced https://service.internal/private/path during inspection.", "private_url"],
+  ["serialized source object", "{\"scripts\":{\"build\":\"tsc\"},\"privateConfig\":{\"mode\":\"local\"}}", "likely_source_code"],
+  ["encoded blob", Buffer.from("generic opaque file content ".repeat(8)).toString("base64"), "suspicious_encoded_blob"],
+] as const;
+
 test("chatgpt, claude, and codex analysts produce equivalent accepted Project State evidence", async () => {
   const accepted = [];
   for (const provider of analysts) {
@@ -63,6 +84,30 @@ test("the versioned public JSON Schema publishes the corrected bound", async () 
   assert.equal(schema.properties.provenance_index.items.properties.limitations.items.maxLength, PROTOCOL_MAX_LINE_LENGTH);
 });
 
+test("every public Project State text field has an explicit semantic schema role", async () => {
+  const schema = JSON.parse(await readFile(new URL(`../schema/project-state-reconstruction-${PROJECT_STATE_RECONSTRUCTION_SCHEMA_VERSION}.schema.json`, import.meta.url), "utf8"));
+  const unconstrainedByStructure: string[] = [];
+  const walk = (value: any, path = "packet") => {
+    if (!value || typeof value !== "object") return;
+    const stringVariant = value.type === "string" ? value : value.anyOf?.find((variant: any) => variant.type === "string");
+    if (stringVariant && !value.const && !value.enum && !stringVariant.pattern && !stringVariant.format) unconstrainedByStructure.push(path);
+    for (const [key, child] of Object.entries(value.properties ?? {})) walk(child, `${path}.${key}`);
+    if (value.items) walk(value.items, `${path}[]`);
+  };
+  walk(schema);
+  assert.deepEqual(unconstrainedByStructure.sort(), [
+    "packet.analyst.model",
+    "packet.analyst.surface",
+    "packet.findings[].limitations[]",
+    "packet.findings[].statement",
+    "packet.inspection.root_label",
+    "packet.inspection.scope.limitations[]",
+    "packet.provenance_index[].limitations[]",
+    "packet.provenance_index[].relative_path",
+    "packet.summary",
+  ]);
+});
+
 test("normalization precedes the shared length boundary", async () => {
   const atLimit: any = clone(projectStatePacket("codex"));
   atLimit.summary = `${"ﬃ ".repeat(104)}ﬃx`;
@@ -111,6 +156,76 @@ test("Project State privacy rejections are addressed to a Project State field pa
     assert.equal(result.category, "privacy_rejection");
     assert.ok(result.issues.includes("project_state_packet.findings[0].limitations[0]: likely_source_code"), JSON.stringify(result.issues));
     for (const issue of result.issues) assert.ok(!issue.includes("return"), issue);
+  }
+});
+
+test("prohibited narrative material fails closed in every Project State narrative field for every analyst", async () => {
+  for (const provider of analysts) for (const [sampleName, value, category] of prohibitedNarrativeSamples) for (const target of projectStateNarrativeTargets) {
+    const packet: any = clone(projectStatePacket(provider));
+    target.set(packet, value);
+    const result = await acceptProjectStateReconstruction(packet, projectStateContext(provider));
+    assert.equal(result.status, "reject", `${provider}: ${sampleName} was accepted in ${target.name}`);
+    if (result.status === "reject") {
+      assert.equal(result.category, "privacy_rejection", `${provider}: ${sampleName} in ${target.name}: ${JSON.stringify(result.issues)}`);
+      assert.ok(result.issues.includes(`project_state_packet.${target.path}: ${category}`), `${provider}: ${sampleName} in ${target.name}: ${JSON.stringify(result.issues)}`);
+      for (const issue of result.issues) {
+        assert.ok(!issue.includes("distinctivesecretvalue"), issue);
+        assert.ok(!issue.includes("buildEndpoint"), issue);
+        assert.ok(!issue.includes("private/workspace"), issue);
+      }
+    }
+  }
+});
+
+test("source-like content cannot hide in Project State labels", async () => {
+  const samples = [
+    ["function stage(input){ return input.map(item => item.value); }", "likely_source_code"],
+    ["User: provide the private module. Assistant: here is its implementation.", "raw_transcript"],
+    ["Observed password=distinctivesecretvalue during inspection.", "credential_assignment"],
+  ] as const;
+  for (const provider of analysts) for (const [value, category] of samples) {
+    for (const target of ["root_label", "surface", "model"] as const) {
+      const packet: any = clone(projectStatePacket(provider));
+      const context: any = clone(projectStateContext(provider));
+      if (target === "root_label") packet.inspection.root_label = value;
+      else { packet.analyst[target] = value; context.analyst[target] = value; }
+      const result = await acceptProjectStateReconstruction(packet, context);
+      assert.equal(result.status, "reject", `${provider}: ${target} accepted prohibited content`);
+      if (result.status === "reject") {
+        assert.equal(result.category, "privacy_rejection", JSON.stringify(result.issues));
+        const path = target === "root_label" ? "inspection.root_label" : `analyst.${target}`;
+        assert.ok(result.issues.includes(`project_state_packet.${path}: ${category}`), JSON.stringify(result.issues));
+        for (const issue of result.issues) assert.ok(!issue.includes("distinctivesecretvalue"), issue);
+      }
+    }
+  }
+});
+
+test("ordinary generalized limitations remain usable across fields and analysts", async () => {
+  const legitimate = [
+    "A generated configuration was excluded; only its presence and role were generalized.",
+    "One function-named component was present, but its implementation was not inspected.",
+    "Build metadata described an export target; the underlying file contents were excluded.",
+  ];
+  for (const provider of analysts) for (const value of legitimate) for (const target of projectStateNarrativeTargets) {
+    const packet: any = clone(projectStatePacket(provider));
+    target.set(packet, value);
+    const result = await acceptProjectStateReconstruction(packet, projectStateContext(provider));
+    assert.equal(result.status, "accept", `${provider}: legitimate prose rejected in ${target.name}: ${JSON.stringify(result)}`);
+  }
+});
+
+test("Project State relative paths reject absolute, traversal, credential, and version-control paths", async () => {
+  for (const provider of analysts) for (const value of ["C:/workspace/package.json", "/workspace/package.json", "../outside/package.json", ".env.production", ".git/config", ".hg/store", ".svn/entries"]) {
+    const packet: any = clone(projectStatePacket(provider));
+    packet.provenance_index[0].relative_path = value;
+    const result = await acceptProjectStateReconstruction(packet, projectStateContext(provider));
+    assert.equal(result.status, "reject", `${provider}: unsafe path accepted: ${value}`);
+    if (result.status === "reject") {
+      assert.equal(result.category, "invalid_schema");
+      assert.ok(result.issues.some((issue) => issue.startsWith("provenance_index.0.relative_path:")), JSON.stringify(result.issues));
+      for (const issue of result.issues) assert.ok(!issue.includes(value), issue);
+    }
   }
 });
 
