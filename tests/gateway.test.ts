@@ -20,7 +20,6 @@ const schemaMutations: Array<[string, (packet: any) => void]> = [
   ["invalid enum", (packet) => { packet.coverage_perimeter.coverage_confidence = "complete"; }],
   ["source assigns cross_source_confirmed", (packet) => { packet.project_summary.claim_basis = "cross_source_confirmed"; }],
   ["invalid packet identity", (packet) => { packet.reconstruction_packet_schema_version = "2.0.0"; }],
-  ["oversized field", (packet) => { packet.project_summary.description = "x".repeat(2001); }],
   ["private source detail", (packet) => { packet.provenance_index[0].source_detail = "C:/private/repository"; }],
 ];
 

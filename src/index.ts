@@ -6,3 +6,4 @@ export * from "./privacy.js";
 export * from "./project-state.js";
 export * from "./receipts.js";
 export * from "./schema.js";
+export * from "./segments.js";

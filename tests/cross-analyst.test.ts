@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { PROJECT_STATE_RECONSTRUCTION_SCHEMA_VERSION, PROTOCOL_MAX_LINE_LENGTH } from "../src/constants.js";
+import { PROJECT_STATE_RECONSTRUCTION_SCHEMA_VERSION } from "../src/constants.js";
 import { acceptHistoricalReconstruction, acceptProjectStateReconstruction } from "../src/gateway.js";
 import { clone, generalizedProse, projectStateContext, projectStatePacket, validContext, validPacket, type AnalystProvider } from "./fixtures.js";
 
@@ -60,64 +60,35 @@ test("an analyst cannot attest as a provider the trusted context did not authori
   }
 });
 
-test("the published single-line bound is exactly the bound the gateway accepts", async () => {
+test("Project State narrative capacity is length-independent for every analyst", async () => {
   for (const provider of analysts) {
-    const atLimit = await acceptProjectStateReconstruction(withStatement(provider, generalizedProse(PROTOCOL_MAX_LINE_LENGTH)), projectStateContext(provider));
-    assert.equal(atLimit.status, "accept", `${provider}: ${JSON.stringify(atLimit)}`);
-    const overLimit = await acceptProjectStateReconstruction(withStatement(provider, generalizedProse(PROTOCOL_MAX_LINE_LENGTH + 1)), projectStateContext(provider));
-    assert.equal(overLimit.status, "reject");
-    if (overLimit.status === "reject") {
-      assert.equal(overLimit.category, "invalid_schema", JSON.stringify(overLimit.issues));
-      assert.ok(overLimit.issues.some((issue) => issue.startsWith("findings.0.statement:")), JSON.stringify(overLimit.issues));
-      assert.ok(overLimit.issues.some((issue) => issue.includes(String(PROTOCOL_MAX_LINE_LENGTH))), JSON.stringify(overLimit.issues));
-    }
+    const result = await acceptProjectStateReconstruction(withStatement(provider, generalizedProse(1_200_000)), projectStateContext(provider));
+    assert.equal(result.status, "accept", provider);
+    if (result.status === "accept") assert.ok(result.accepted.canonical_segments.length > 5);
   }
 });
 
-test("the versioned public JSON Schema publishes the corrected bound", async () => {
+test("the versioned public JSON Schema publishes unbounded narrative and collection capacity", async () => {
   const schema = JSON.parse(await readFile(new URL(`../schema/project-state-reconstruction-${PROJECT_STATE_RECONSTRUCTION_SCHEMA_VERSION}.schema.json`, import.meta.url), "utf8"));
   assert.equal(schema.properties.project_state_reconstruction_schema_version.const, PROJECT_STATE_RECONSTRUCTION_SCHEMA_VERSION);
-  assert.equal(schema.properties.summary.maxLength, PROTOCOL_MAX_LINE_LENGTH);
-  assert.equal(schema.properties.findings.items.properties.statement.maxLength, PROTOCOL_MAX_LINE_LENGTH);
-  assert.equal(schema.properties.findings.items.properties.limitations.items.maxLength, PROTOCOL_MAX_LINE_LENGTH);
-  assert.equal(schema.properties.inspection.properties.scope.properties.limitations.items.maxLength, PROTOCOL_MAX_LINE_LENGTH);
-  assert.equal(schema.properties.provenance_index.items.properties.limitations.items.maxLength, PROTOCOL_MAX_LINE_LENGTH);
+  assert.equal(schema.properties.summary.maxLength, undefined);
+  assert.equal(schema.properties.findings.maxItems, undefined);
+  assert.equal(schema.properties.findings.items.properties.statement.maxLength, undefined);
+  assert.equal(schema.properties.provenance_index.maxItems, undefined);
 });
 
-test("every public Project State text field has an explicit semantic schema role", async () => {
-  const schema = JSON.parse(await readFile(new URL(`../schema/project-state-reconstruction-${PROJECT_STATE_RECONSTRUCTION_SCHEMA_VERSION}.schema.json`, import.meta.url), "utf8"));
-  const unconstrainedByStructure: string[] = [];
-  const walk = (value: any, path = "packet") => {
-    if (!value || typeof value !== "object") return;
-    const stringVariant = value.type === "string" ? value : value.anyOf?.find((variant: any) => variant.type === "string");
-    if (stringVariant && !value.const && !value.enum && !stringVariant.pattern && !stringVariant.format) unconstrainedByStructure.push(path);
-    for (const [key, child] of Object.entries(value.properties ?? {})) walk(child, `${path}.${key}`);
-    if (value.items) walk(value.items, `${path}[]`);
-  };
-  walk(schema);
-  assert.deepEqual(unconstrainedByStructure, []);
+test("normalization introduces no hidden Project State capacity boundary", async () => {
+  const packet: any = clone(projectStatePacket("codex"));
+  packet.summary = `${"ﬃ ".repeat(100_000)}ﬃx`;
+  assert.equal((await acceptProjectStateReconstruction(packet, projectStateContext("codex"))).status, "accept");
 });
 
-test("normalization precedes the shared length boundary", async () => {
-  const atLimit: any = clone(projectStatePacket("codex"));
-  atLimit.summary = `${"ﬃ ".repeat(104)}ﬃx`;
-  assert.equal((await acceptProjectStateReconstruction(atLimit, projectStateContext("codex"))).status, "accept");
-
-  const overLimit: any = clone(atLimit);
-  overLimit.summary += "ﬃ";
-  const rejected = await acceptProjectStateReconstruction(overLimit, projectStateContext("codex"));
-  assert.equal(rejected.status, "reject");
-  if (rejected.status === "reject") assert.equal(rejected.category, "invalid_schema");
-});
-
-test("no generalized prose length is schema-legal yet privacy-rejected for line size", async () => {
-  for (let length = 1; length <= 1_200; length += 7) {
+test("no generalized Project State prose is rejected merely for size", async () => {
+  for (const length of [1, 420, 421, 1_200, 100_000]) {
     const statement = await acceptProjectStateReconstruction(withStatement("claude", generalizedProse(length)), projectStateContext("claude"));
-    if (statement.status === "reject") assert.equal(statement.category, "invalid_schema", `statement length ${length}: ${JSON.stringify(statement.issues)}`);
-    const packet: any = clone(projectStatePacket("claude"));
-    packet.findings[0].limitations = [generalizedProse(length)];
-    const limitation = await acceptProjectStateReconstruction(packet, projectStateContext("claude"));
-    if (limitation.status === "reject") assert.equal(limitation.category, "invalid_schema", `limitation length ${length}: ${JSON.stringify(limitation.issues)}`);
+    assert.equal(statement.status, "accept", `statement length ${length}`);
+    const packet: any = clone(projectStatePacket("claude")); packet.findings[0].limitations = [generalizedProse(length)];
+    assert.equal((await acceptProjectStateReconstruction(packet, projectStateContext("claude"))).status, "accept", `limitation length ${length}`);
   }
 });
 

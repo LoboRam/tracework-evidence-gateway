@@ -1,13 +1,12 @@
-export const GATEWAY_PACKAGE_VERSION = "1.1.3";
+export const GATEWAY_PACKAGE_VERSION = "1.2.0";
 export const SOURCE_COVERAGE_PROTOCOL_VERSION = "recovery-0.1";
-export const RECONSTRUCTION_PACKET_SCHEMA_VERSION = "2.1.1";
+export const RECONSTRUCTION_PACKET_SCHEMA_VERSION = "2.2.0";
 export const RECONSTRUCTION_PROTOCOL_VERSION = "historical-0.4";
 export const PROVENANCE_SCHEMA_VERSION = "1.0.0";
-export const PROJECT_STATE_RECONSTRUCTION_SCHEMA_VERSION = "1.0.3";
+export const PROJECT_STATE_RECONSTRUCTION_SCHEMA_VERSION = "1.1.0";
 export const PROJECT_STATE_RECONSTRUCTION_PROTOCOL_VERSION = "project-state-1.0";
 export const PROJECT_STATE_FINGERPRINT_ALGORITHM = "tracework.ps.snapshot.sha256-inventory-v1";
-export const PROTOCOL_MAX_LINE_LENGTH = 420;
-export const PRIVACY_CONTRACT_COMPATIBILITY = "2.0.3";
+export const PRIVACY_CONTRACT_COMPATIBILITY = "3.0.0";
 export const RECEIPT_FORMAT_VERSION = "1.0.0";
 export const KEY_REGISTRY_FORMAT_VERSION = "1.0.0";
 export const CANONICAL_ARTIFACT_FORMAT = "tracework-evidence-gateway-canonical-v1";

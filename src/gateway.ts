@@ -4,6 +4,7 @@ import { privacyIssuesFor } from "./privacy.js";
 import { sourceCoverageManifestSchema, sourceReconstructionPacketSchema, trustedCoverageContextSchema, trustedGatewayContextSchema, type SourceCoverageManifest, type SourceReconstructionPacket, type TrustedGatewayContext } from "./schema.js";
 import { projectStateReconstructionPacketSchema, trustedProjectStateContextSchema, type ProjectStateReconstructionPacket, type TrustedProjectStateContext } from "./project-state.js";
 import { PROJECT_STATE_RECONSTRUCTION_PROTOCOL_VERSION, PROJECT_STATE_RECONSTRUCTION_SCHEMA_VERSION } from "./constants.js";
+import { segmentLogicalContent, type LogicalContentSegment, type LogicalContentSegmentManifest } from "./segments.js";
 
 export type GatewayRejectionCategory =
   | "invalid_trusted_context"
@@ -32,6 +33,8 @@ export type CanonicalAcceptedPacket = Readonly<{
   readonly packet: SourceReconstructionPacket;
   readonly canonical_packet: string;
   readonly accepted_packet_digest: string;
+  readonly canonical_segment_manifest: LogicalContentSegmentManifest;
+  readonly canonical_segments: readonly LogicalContentSegment[];
   readonly validation_metadata: GatewayValidationMetadata;
 }>;
 
@@ -48,6 +51,8 @@ export type CanonicalAcceptedProjectStatePacket = Readonly<{
   readonly packet: ProjectStateReconstructionPacket;
   readonly canonical_packet: string;
   readonly accepted_packet_digest: string;
+  readonly canonical_segment_manifest: LogicalContentSegmentManifest;
+  readonly canonical_segments: readonly LogicalContentSegment[];
   readonly validation_metadata: Readonly<{
     gateway_package_version: string;
     project_state_reconstruction_schema_version: string;
@@ -126,13 +131,16 @@ export async function acceptHistoricalReconstruction(candidate: unknown, trusted
     const privacyIssues = privacyIssuesFor(packetResult.data);
     if (privacyIssues.length) return reject("privacy_rejection", privacyIssues);
     const canonicalPacket = canonicalize(packetResult.data);
+    const segmented = await segmentLogicalContent(canonicalPacket);
     return {
       status: "accept",
       accepted: Object.freeze({
         __tracework_gateway_acceptance: GATEWAY_ACCEPTANCE_BRAND,
         packet: packetResult.data,
         canonical_packet: canonicalPacket,
-        accepted_packet_digest: await sha256Hex(canonicalPacket),
+        accepted_packet_digest: segmented.manifest.logical_content_sha256,
+        canonical_segment_manifest: segmented.manifest,
+        canonical_segments: segmented.segments,
         validation_metadata: Object.freeze({
           gateway_package_version: GATEWAY_PACKAGE_VERSION,
           reconstruction_packet_schema_version: RECONSTRUCTION_PACKET_SCHEMA_VERSION,
@@ -184,11 +192,14 @@ export async function acceptProjectStateReconstruction(candidate: unknown, trust
     const privacyIssues = privacyIssuesFor(packet, "project_state_packet");
     if (privacyIssues.length) return reject("privacy_rejection", privacyIssues);
     const canonicalPacket = canonicalize(packet);
+    const segmented = await segmentLogicalContent(canonicalPacket);
     return { status: "accept", accepted: Object.freeze({
       __tracework_gateway_acceptance: GATEWAY_ACCEPTANCE_BRAND,
       packet,
       canonical_packet: canonicalPacket,
-      accepted_packet_digest: await sha256Hex(canonicalPacket),
+      accepted_packet_digest: segmented.manifest.logical_content_sha256,
+      canonical_segment_manifest: segmented.manifest,
+      canonical_segments: segmented.segments,
       validation_metadata: Object.freeze({ gateway_package_version: GATEWAY_PACKAGE_VERSION, project_state_reconstruction_schema_version: PROJECT_STATE_RECONSTRUCTION_SCHEMA_VERSION, project_state_reconstruction_protocol_version: PROJECT_STATE_RECONSTRUCTION_PROTOCOL_VERSION, privacy_contract_compatibility: PRIVACY_CONTRACT_COMPATIBILITY, normalized: true, privacy_scan: "passed", provenance_validation: "passed", snapshot_validation: "passed" }),
     }) };
   } catch {

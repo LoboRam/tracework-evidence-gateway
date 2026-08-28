@@ -1,0 +1,514 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "packet_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "project_state_reconstruction_schema_version": {
+      "type": "string",
+      "const": "1.1.0"
+    },
+    "project_state_reconstruction_protocol_version": {
+      "type": "string",
+      "const": "project-state-1.0"
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "evidence_source": {
+      "type": "object",
+      "properties": {
+        "architecture_version": {
+          "type": "number",
+          "const": 1
+        },
+        "source_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "pattern": "^[A-Za-z0-9._:-]+$"
+        },
+        "source_type": {
+          "type": "string",
+          "const": "project_state"
+        },
+        "source_system": {
+          "type": "string",
+          "const": "local_project_workspace"
+        },
+        "analyst_provider": {
+          "type": "null"
+        }
+      },
+      "required": [
+        "architecture_version",
+        "source_id",
+        "source_type",
+        "source_system",
+        "analyst_provider"
+      ],
+      "additionalProperties": false
+    },
+    "inspection": {
+      "type": "object",
+      "properties": {
+        "inspection_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "pattern": "^[A-Za-z0-9._:-]+$"
+        },
+        "inspected_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+        },
+        "workspace_handle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "pattern": "^[A-Za-z0-9._:-]+$"
+        },
+        "root_label": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\r\\n\\u2028\\u2029]+$"
+        },
+        "inspection_method": {
+          "type": "string",
+          "enum": [
+            "local_filesystem",
+            "mounted_project_workspace"
+          ]
+        },
+        "snapshot": {
+          "type": "object",
+          "properties": {
+            "fingerprint_algorithm": {
+              "type": "string",
+              "const": "tracework.ps.snapshot.sha256-inventory-v1"
+            },
+            "root_fingerprint": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "scope_fingerprint": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "path_set_fingerprint": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "inventory_fingerprint": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "fingerprinted_file_count": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "fingerprinted_directory_count": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "fingerprinted_total_bytes": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "previous_root_fingerprint": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "fingerprint_algorithm",
+            "root_fingerprint",
+            "scope_fingerprint",
+            "path_set_fingerprint",
+            "inventory_fingerprint",
+            "fingerprinted_file_count",
+            "fingerprinted_directory_count",
+            "fingerprinted_total_bytes",
+            "previous_root_fingerprint"
+          ],
+          "additionalProperties": false
+        },
+        "scope": {
+          "type": "object",
+          "properties": {
+            "basis": {
+              "type": "string",
+              "enum": [
+                "project_root",
+                "authorized_subtree"
+              ]
+            },
+            "excluded_categories": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "credentials_and_secrets",
+                  "version_control_internals",
+                  "dependency_caches",
+                  "unreadable_entries",
+                  "outside_authorized_scope",
+                  "binary_contents"
+                ]
+              }
+            },
+            "symlink_policy": {
+              "type": "string",
+              "enum": [
+                "do_not_follow",
+                "follow_within_authorized_root"
+              ]
+            },
+            "hidden_files_policy": {
+              "type": "string",
+              "enum": [
+                "include_except_sensitive",
+                "exclude_all"
+              ]
+            },
+            "limitations": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "required": [
+            "basis",
+            "excluded_categories",
+            "symlink_policy",
+            "hidden_files_policy",
+            "limitations"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "inspection_id",
+        "inspected_at",
+        "workspace_handle",
+        "root_label",
+        "inspection_method",
+        "snapshot",
+        "scope"
+      ],
+      "additionalProperties": false
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "findings": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "finding_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "^[A-Za-z0-9._:-]+$"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "project_entry_point",
+              "active_execution_path",
+              "major_module_or_component",
+              "referenced_dependency",
+              "configuration_or_provider_wiring",
+              "active_model_or_asset",
+              "test_build_or_package_structure",
+              "inactive_code",
+              "experimental_code",
+              "obsolete_code",
+              "generated_or_build_artifact",
+              "dead_code",
+              "architecture_state",
+              "capability_state",
+              "unknown_state"
+            ]
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1
+          },
+          "directness": {
+            "type": "string",
+            "enum": [
+              "direct_observation",
+              "inferred_architecture",
+              "unknown"
+            ]
+          },
+          "state_classification": {
+            "type": "string",
+            "enum": [
+              "active_reachable",
+              "present_inactive",
+              "experimental",
+              "obsolete",
+              "generated_artifact",
+              "dead",
+              "present_reachability_unknown",
+              "unknown"
+            ]
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "provenance_refs": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120,
+              "pattern": "^[A-Za-z0-9._:-]+$"
+            }
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "production_status": {
+            "type": "string",
+            "const": "not_established"
+          }
+        },
+        "required": [
+          "finding_id",
+          "category",
+          "statement",
+          "directness",
+          "state_classification",
+          "confidence",
+          "provenance_refs",
+          "limitations",
+          "production_status"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "provenance_index": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "ref_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "^[A-Za-z0-9._:-]+$"
+          },
+          "component_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "^[A-Za-z0-9._:-]+$"
+          },
+          "component_kind": {
+            "type": "string",
+            "enum": [
+              "file",
+              "directory",
+              "entry_point",
+              "module",
+              "package",
+              "configuration",
+              "provider",
+              "model",
+              "asset",
+              "test",
+              "build",
+              "generated_artifact",
+              "other"
+            ]
+          },
+          "relative_path": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^\\r\\n\\u2028\\u2029]+$"
+          },
+          "content_fingerprint": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "observation_basis": {
+            "type": "string",
+            "enum": [
+              "filesystem_metadata",
+              "manifest_or_configuration",
+              "import_or_reference_graph",
+              "entry_point_reachability",
+              "build_or_test_definition",
+              "generated_marker",
+              "naming_and_location_signal",
+              "bounded_static_analysis",
+              "other_bounded_observation"
+            ]
+          },
+          "directness": {
+            "type": "string",
+            "enum": [
+              "direct_observation",
+              "inferred_relationship"
+            ]
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "required": [
+          "ref_id",
+          "component_id",
+          "component_kind",
+          "observation_basis",
+          "directness",
+          "observed_at",
+          "limitations"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "analyst": {
+      "type": "object",
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": [
+            "chatgpt",
+            "claude",
+            "codex",
+            "other"
+          ]
+        },
+        "surface": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\r\\n\\u2028\\u2029]+$"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[^\\r\\n\\u2028\\u2029]+$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "inspected_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+        }
+      },
+      "required": [
+        "provider",
+        "surface",
+        "inspected_at"
+      ],
+      "additionalProperties": false
+    },
+    "privacy": {
+      "type": "object",
+      "properties": {
+        "raw_source_code_included": {
+          "type": "boolean",
+          "const": false
+        },
+        "file_contents_included": {
+          "type": "boolean",
+          "const": false
+        },
+        "credentials_or_secrets_included": {
+          "type": "boolean",
+          "const": false
+        },
+        "absolute_paths_included": {
+          "type": "boolean",
+          "const": false
+        },
+        "sanitized_findings_only": {
+          "type": "boolean",
+          "const": true
+        },
+        "cryptographic_fingerprints_only": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "required": [
+        "raw_source_code_included",
+        "file_contents_included",
+        "credentials_or_secrets_included",
+        "absolute_paths_included",
+        "sanitized_findings_only",
+        "cryptographic_fingerprints_only"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "packet_id",
+    "project_state_reconstruction_schema_version",
+    "project_state_reconstruction_protocol_version",
+    "project_id",
+    "evidence_source",
+    "inspection",
+    "summary",
+    "findings",
+    "provenance_index",
+    "analyst",
+    "privacy"
+  ],
+  "additionalProperties": false,
+  "description": "Sanitized Project State reconstruction. It identifies the inspected local project snapshot without storing the project or claiming deployment, usage, adoption, or commercial success."
+}

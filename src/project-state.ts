@@ -1,7 +1,6 @@
 import { z } from "zod";
 import {
   PROJECT_STATE_FINGERPRINT_ALGORITHM,
-  PROTOCOL_MAX_LINE_LENGTH,
   PROJECT_STATE_RECONSTRUCTION_PROTOCOL_VERSION,
   PROJECT_STATE_RECONSTRUCTION_SCHEMA_VERSION,
 } from "./constants.js";
@@ -9,11 +8,11 @@ import { canonicalize, sha256Hex } from "./canonical.js";
 
 const safeId = z.string().trim().min(1).max(120).regex(/^[A-Za-z0-9._:-]+$/);
 const sha256 = z.string().regex(/^[a-f0-9]{64}$/);
-const singleLine = (max: number = PROTOCOL_MAX_LINE_LENGTH) => z.string().trim().min(1).max(Math.min(max, PROTOCOL_MAX_LINE_LENGTH)).regex(/^[^\r\n\u2028\u2029]+$/, "must be a single sanitized line");
-const generalizedNarrative = singleLine();
+const singleLine = () => z.string().trim().min(1).regex(/^[^\r\n\u2028\u2029]+$/, "must be a single sanitized line");
+const generalizedNarrative = z.string().trim().min(1);
 const sensitivePathPart = /^(?:\.(?:git|hg|svn)|\.env(?:\..*)?|\.git-credentials|\.npmrc|\.pypirc|id_(?:rsa|dsa|ecdsa|ed25519)|credentials?|secrets?|tokens?|private[_-]?key)(?:\.[^/]*)?$/i;
 
-export const projectStateRelativePathSchema = z.string().trim().min(1).max(300).regex(/^[^\r\n\u2028\u2029]+$/, "must not contain line breaks").refine((value) => {
+export const projectStateRelativePathSchema = z.string().trim().min(1).regex(/^[^\r\n\u2028\u2029]+$/, "must not contain line breaks").refine((value) => {
   if (value.includes("\\") || value.startsWith("/") || /^[A-Za-z]:/.test(value)) return false;
   const parts = value.split("/");
   return parts.every((part) => part && part !== "." && part !== ".." && !sensitivePathPart.test(part));
@@ -21,8 +20,8 @@ export const projectStateRelativePathSchema = z.string().trim().min(1).max(300).
 
 export const projectStateAnalystSchema = z.object({
   provider: z.enum(["chatgpt", "claude", "codex", "other"]),
-  surface: singleLine(120),
-  model: singleLine(120).nullable().optional(),
+  surface: singleLine(),
+  model: singleLine().nullable().optional(),
   inspected_at: z.string().datetime({ offset: true }),
 }).strict();
 
@@ -58,7 +57,7 @@ export const projectStateReconstructionPacketSchema = z.object({
     inspection_id: safeId,
     inspected_at: z.string().datetime({ offset: true }),
     workspace_handle: safeId,
-    root_label: singleLine(160).refine((value) => !/[\\/]/.test(value) && !/^[A-Za-z]:/.test(value), "must be a safe label, not a filesystem path"),
+    root_label: singleLine().refine((value) => !/[\\/]/.test(value) && !/^[A-Za-z]:/.test(value), "must be a safe label, not a filesystem path"),
     inspection_method: z.enum(["local_filesystem", "mounted_project_workspace"]),
     snapshot: z.object({
       fingerprint_algorithm: z.literal(PROJECT_STATE_FINGERPRINT_ALGORITHM),
@@ -66,17 +65,17 @@ export const projectStateReconstructionPacketSchema = z.object({
       scope_fingerprint: sha256,
       path_set_fingerprint: sha256,
       inventory_fingerprint: sha256,
-      fingerprinted_file_count: z.number().int().nonnegative().max(1_000_000),
-      fingerprinted_directory_count: z.number().int().nonnegative().max(1_000_000),
-      fingerprinted_total_bytes: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+      fingerprinted_file_count: z.number().int().nonnegative(),
+      fingerprinted_directory_count: z.number().int().nonnegative(),
+      fingerprinted_total_bytes: z.number().int().nonnegative(),
       previous_root_fingerprint: sha256.nullable(),
     }).strict(),
     scope: z.object({
       basis: z.enum(["project_root", "authorized_subtree"]),
-      excluded_categories: z.array(z.enum(["credentials_and_secrets", "version_control_internals", "dependency_caches", "unreadable_entries", "outside_authorized_scope", "binary_contents"])).min(1).max(6),
+      excluded_categories: z.array(z.enum(["credentials_and_secrets", "version_control_internals", "dependency_caches", "unreadable_entries", "outside_authorized_scope", "binary_contents"])).min(1),
       symlink_policy: z.enum(["do_not_follow", "follow_within_authorized_root"]),
       hidden_files_policy: z.enum(["include_except_sensitive", "exclude_all"]),
-      limitations: z.array(singleLine()).max(16),
+      limitations: z.array(generalizedNarrative),
     }).strict(),
   }).strict(),
   summary: generalizedNarrative,
@@ -87,10 +86,10 @@ export const projectStateReconstructionPacketSchema = z.object({
     directness: z.enum(["direct_observation", "inferred_architecture", "unknown"]),
     state_classification: projectStateStateClassificationSchema,
     confidence: z.enum(["high", "medium", "low"]),
-    provenance_refs: z.array(safeId).min(1).max(32),
-    limitations: z.array(singleLine()).max(8),
+    provenance_refs: z.array(safeId).min(1),
+    limitations: z.array(generalizedNarrative),
     production_status: z.literal("not_established"),
-  }).strict()).min(1).max(160),
+  }).strict()).min(1),
   provenance_index: z.array(z.object({
     ref_id: safeId,
     component_id: safeId,
@@ -100,8 +99,8 @@ export const projectStateReconstructionPacketSchema = z.object({
     observation_basis: projectStateObservationBasisSchema,
     directness: z.enum(["direct_observation", "inferred_relationship"]),
     observed_at: z.string().datetime({ offset: true }),
-    limitations: z.array(singleLine()).max(8),
-  }).strict()).min(1).max(320),
+    limitations: z.array(generalizedNarrative),
+  }).strict()).min(1),
   analyst: projectStateAnalystSchema,
   privacy: z.object({
     raw_source_code_included: z.literal(false),

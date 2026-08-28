@@ -1,11 +1,11 @@
 import { z } from "zod";
-import { PROTOCOL_MAX_LINE_LENGTH, PROVENANCE_SCHEMA_VERSION, RECONSTRUCTION_PACKET_SCHEMA_VERSION, RECONSTRUCTION_PROTOCOL_VERSION, SOURCE_COVERAGE_PROTOCOL_VERSION } from "./constants.js";
+import { PROVENANCE_SCHEMA_VERSION, RECONSTRUCTION_PACKET_SCHEMA_VERSION, RECONSTRUCTION_PROTOCOL_VERSION, SOURCE_COVERAGE_PROTOCOL_VERSION } from "./constants.js";
 
 const safeId = z.string().trim().min(1).max(120).regex(/^[A-Za-z0-9._:-]+$/);
 const noLineBreaks = /^[^\r\n\u2028\u2029]+$/;
-const singleLine = (max: number = PROTOCOL_MAX_LINE_LENGTH) => z.string().trim().min(1).max(Math.min(max, PROTOCOL_MAX_LINE_LENGTH)).regex(noLineBreaks, "must be a single normalized line");
-const optionalSingleLine = (max: number) => z.string().trim().max(Math.min(max, PROTOCOL_MAX_LINE_LENGTH)).regex(/^[^\r\n\u2028\u2029]*$/, "must be a single normalized line");
-const generalizedNarrative = singleLine();
+const singleLine = () => z.string().trim().min(1).regex(noLineBreaks, "must be a single normalized line");
+const optionalSingleLine = () => z.string().trim().regex(/^[^\r\n\u2028\u2029]*$/, "must be a single normalized line");
+const generalizedNarrative = z.string().trim().min(1);
 const limitationText = generalizedNarrative;
 
 export const providerSchema = z.enum(["chatgpt", "claude", "codex", "other", "manual"]);
@@ -21,18 +21,18 @@ export const capabilitySchema = z.enum([
   "Problem Definition", "Requirements Definition", "Planning", "Systems Thinking", "Architecture", "Tradeoff Reasoning", "AI Orchestration", "Critical AI Evaluation", "Debugging", "Root-Cause Analysis", "Experiment Design", "Validation", "Quality Control", "Risk Identification", "Integration", "Product Thinking", "User Experience Judgment", "Research / Evidence Evaluation", "Communication / Specification",
 ]);
 
-export const historicalDateSchema = z.object({ value: optionalSingleLine(80).optional(), label: singleLine(120), precision: datePrecisionSchema }).strict().superRefine((date, context) => {
+export const historicalDateSchema = z.object({ value: optionalSingleLine().optional(), label: singleLine(), precision: datePrecisionSchema }).strict().superRefine((date, context) => {
   const value = date.value ?? "";
   if (date.precision === "day" && !/^\d{4}-\d{2}-\d{2}$/.test(value)) context.addIssue({ code: "custom", path: ["value"], message: "Day precision requires YYYY-MM-DD" });
   if (date.precision === "month" && !/^\d{4}-\d{2}$/.test(value)) context.addIssue({ code: "custom", path: ["value"], message: "Month precision requires YYYY-MM" });
   if (date.precision === "year" && !/^\d{4}$/.test(value)) context.addIssue({ code: "custom", path: ["value"], message: "Year precision requires YYYY" });
-  if (date.precision === "range" && (value.length < 3 || value.length > 80)) context.addIssue({ code: "custom", path: ["value"], message: "Range precision requires a bounded generalized range" });
+  if (date.precision === "range" && value.length < 3) context.addIssue({ code: "custom", path: ["value"], message: "Range precision requires a generalized range" });
   if (date.precision === "unknown" && value) context.addIssue({ code: "custom", path: ["value"], message: "Unknown precision cannot include a value" });
 });
 
-export const provenanceReferenceSchema = z.object({ ref_id: safeId, recovery_pass_id: safeId, manifest_id: safeId, source_type: sourceTypeSchema, source_detail: sourceDetailSchema, date: historicalDateSchema, confidence: evidenceStrengthSchema, limitations: z.array(limitationText).max(8) }).strict();
-const evidenceBase = { evidence_id: safeId, description: generalizedNarrative, uncertainty: uncertaintySchema, evidence_refs: z.array(safeId).min(1).max(24) };
-const meaningfulMomentSchema = z.object({ ...evidenceBase, title: singleLine(160), date: historicalDateSchema, resulting_state: generalizedNarrative }).strict();
+export const provenanceReferenceSchema = z.object({ ref_id: safeId, recovery_pass_id: safeId, manifest_id: safeId, source_type: sourceTypeSchema, source_detail: sourceDetailSchema, date: historicalDateSchema, confidence: evidenceStrengthSchema, limitations: z.array(limitationText) }).strict();
+const evidenceBase = { evidence_id: safeId, description: generalizedNarrative, uncertainty: uncertaintySchema, evidence_refs: z.array(safeId).min(1) };
+const meaningfulMomentSchema = z.object({ ...evidenceBase, title: singleLine(), date: historicalDateSchema, resulting_state: generalizedNarrative }).strict();
 const humanObservationSchema = z.object({ ...evidenceBase, observation_type: z.enum(["objective", "requirement", "constraint", "decision", "challenge", "correction", "rejection", "diagnosis", "redirection", "validation", "integration", "specification", "other_supported_judgment"]) }).strict();
 const aiObservationSchema = z.object({ ...evidenceBase, observation_type: z.enum(["proposal", "research", "implementation", "debugging", "testing", "analysis", "autonomous_execution", "other_ai_activity"]) }).strict();
 const decisionSchema = z.object({ ...evidenceBase, decision_type: z.enum(["architecture", "tradeoff", "scope", "product", "risk", "quality", "integration", "experiment", "other"]), outcome: generalizedNarrative }).strict();
@@ -47,24 +47,24 @@ export const sourceReconstructionPacketSchema = z.object({
   reconstruction_protocol_version: z.literal(RECONSTRUCTION_PROTOCOL_VERSION),
   provenance_schema_version: z.literal(PROVENANCE_SCHEMA_VERSION),
   project_id: safeId,
-  project_name: singleLine(160),
+  project_name: singleLine(),
   provider: providerSchema,
-  coverage_perimeter: z.object({ accepted_reconstruction_coverage_snapshot_id: safeId, recovery_pass_ids: z.array(safeId).min(1).max(32), manifest_ids: z.array(safeId).min(1).max(32), earliest_date: historicalDateSchema, latest_date: historicalDateSchema, coverage_confidence: coverageConfidenceSchema, limitations: z.array(limitationText).max(16) }).strict(),
+  coverage_perimeter: z.object({ accepted_reconstruction_coverage_snapshot_id: safeId, recovery_pass_ids: z.array(safeId).min(1), manifest_ids: z.array(safeId).min(1), earliest_date: historicalDateSchema, latest_date: historicalDateSchema, coverage_confidence: coverageConfidenceSchema, limitations: z.array(limitationText) }).strict(),
   project_summary: z.object({ description: generalizedNarrative, claim_basis: claimBasisSchema }).strict(),
-  provenance_index: z.array(provenanceReferenceSchema).min(1).max(240),
-  evidence: z.object({ meaningful_moments: z.array(meaningfulMomentSchema).min(1).max(80), human_observations: z.array(humanObservationSchema).max(160), ai_observations: z.array(aiObservationSchema).max(160), decisions: z.array(decisionSchema).max(120), failures_and_pivots: z.array(pivotSchema).max(80), validation_and_outcomes: z.array(validationOutcomeSchema).max(120), capability_evidence: z.array(capabilityEvidenceSchema).max(80), origin_traces: z.array(originTraceSchema).max(160) }).strict(),
-  provider_limitations: z.array(limitationText).max(20),
-  privacy_profile: z.object({ redactions_applied: z.array(z.enum(["raw_conversation", "prompt_content", "source_code", "file_content", "credential", "personal_identifier", "private_url", "provider_identifier", "other"])).max(16), owner_opted_in_disclosures: z.array(singleLine(240)).max(8) }).strict(),
+  provenance_index: z.array(provenanceReferenceSchema).min(1),
+  evidence: z.object({ meaningful_moments: z.array(meaningfulMomentSchema).min(1), human_observations: z.array(humanObservationSchema), ai_observations: z.array(aiObservationSchema), decisions: z.array(decisionSchema), failures_and_pivots: z.array(pivotSchema), validation_and_outcomes: z.array(validationOutcomeSchema), capability_evidence: z.array(capabilityEvidenceSchema), origin_traces: z.array(originTraceSchema) }).strict(),
+  provider_limitations: z.array(limitationText),
+  privacy_profile: z.object({ redactions_applied: z.array(z.enum(["raw_conversation", "prompt_content", "source_code", "file_content", "credential", "personal_identifier", "private_url", "provider_identifier", "other"])), owner_opted_in_disclosures: z.array(generalizedNarrative) }).strict(),
   provider_provenance: z.object({ provider: providerSchema, packet_generated_at: z.string().datetime({ offset: true }) }).strict(),
 }).strict();
 
 export const trustedGatewayContextSchema = z.object({
   project_id: safeId,
-  project_name: singleLine(160),
+  project_name: singleLine(),
   expected_provider: providerSchema,
   accepted_reconstruction_coverage_snapshot_id: safeId,
-  allowed_recovery_pass_ids: z.array(safeId).min(1).max(32),
-  allowed_manifest_ids: z.array(safeId).min(1).max(32),
+  allowed_recovery_pass_ids: z.array(safeId).min(1),
+  allowed_manifest_ids: z.array(safeId).min(1),
   reconstruction_packet_schema_version: z.literal(RECONSTRUCTION_PACKET_SCHEMA_VERSION),
   reconstruction_protocol_version: z.literal(RECONSTRUCTION_PROTOCOL_VERSION),
   provenance_schema_version: z.literal(PROVENANCE_SCHEMA_VERSION),
@@ -75,14 +75,14 @@ export const sourceCoverageManifestSchema = z.object({
   project_id: safeId,
   provider: z.enum(["chatgpt", "claude", "codex"]),
   coverage: z.enum(["strong", "partial", "limited", "unavailable"]),
-  historical_range: z.object({ start: optionalSingleLine(40).optional(), end: optionalSingleLine(40).optional(), label: singleLine(100), precision: z.enum(["exact", "month", "season", "approximate", "unknown"]) }).strict(),
-  candidate_contexts: z.number().int().min(0).max(10_000).nullable(),
+  historical_range: z.object({ start: optionalSingleLine().optional(), end: optionalSingleLine().optional(), label: singleLine(), precision: z.enum(["exact", "month", "season", "approximate", "unknown"]) }).strict(),
+  candidate_contexts: z.number().int().min(0).nullable(),
   context_unit: z.enum(["conversations", "chats", "sessions", "threads", "contexts"]),
-  search_tiers_used: z.array(z.enum(["exact_identity", "distinctive_reference", "goal_domain", "semantic"])).min(1).max(4),
-  matched_signals: z.array(singleLine(80)).max(20),
-  coverage_notes: z.array(singleLine(300)).max(12),
-  limitations: z.array(singleLine(300)).max(12),
-  remaining_gaps: z.array(singleLine(300)).max(12).default([]),
+  search_tiers_used: z.array(z.enum(["exact_identity", "distinctive_reference", "goal_domain", "semantic"])).min(1),
+  matched_signals: z.array(singleLine()),
+  coverage_notes: z.array(generalizedNarrative),
+  limitations: z.array(generalizedNarrative),
+  remaining_gaps: z.array(generalizedNarrative).default([]),
   relevant_history_found: z.boolean(),
   history_may_be_missing: z.boolean(),
   source_scope_reference: safeId.optional(),

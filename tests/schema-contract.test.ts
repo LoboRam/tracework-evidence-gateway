@@ -1,115 +1,64 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import {
-  PROJECT_STATE_RECONSTRUCTION_SCHEMA_VERSION,
-  PROTOCOL_MAX_LINE_LENGTH,
-  RECONSTRUCTION_PACKET_SCHEMA_VERSION,
-} from "../src/constants.js";
+import { PROJECT_STATE_RECONSTRUCTION_SCHEMA_VERSION, RECONSTRUCTION_PACKET_SCHEMA_VERSION } from "../src/constants.js";
 import { acceptHistoricalReconstruction } from "../src/gateway.js";
 import { privacyIssuesFor } from "../src/privacy.js";
+import { reassembleLogicalContent } from "../src/segments.js";
 import { clone, generalizedProse, validContext, validPacket } from "./fixtures.js";
 
-async function schema(name: string) {
-  return JSON.parse(await readFile(new URL(`../schema/${name}.schema.json`, import.meta.url), "utf8"));
-}
+async function schema(name: string) { return JSON.parse(await readFile(new URL(`../schema/${name}.schema.json`, import.meta.url), "utf8")); }
 
-function stringsWithOversizedPublishedBounds(value: any, path = "schema", found: string[] = []): string[] {
+function artificialCapacityLimits(value: any, path = "schema", found: string[] = []): string[] {
   if (!value || typeof value !== "object") return found;
-  if (value.type === "string" && typeof value.maxLength === "number" && value.maxLength > PROTOCOL_MAX_LINE_LENGTH) found.push(`${path} (${value.maxLength})`);
-  for (const [key, child] of Object.entries(value.properties ?? {})) stringsWithOversizedPublishedBounds(child, `${path}.${key}`, found);
-  if (value.items) stringsWithOversizedPublishedBounds(value.items, `${path}[]`, found);
-  for (const [index, child] of (value.anyOf ?? []).entries()) stringsWithOversizedPublishedBounds(child, `${path}.anyOf[${index}]`, found);
+  if (typeof value.maxLength === "number" || typeof value.maxItems === "number") found.push(path);
+  for (const [key, child] of Object.entries(value.properties ?? {})) artificialCapacityLimits(child, `${path}.${key}`, found);
+  if (value.items) artificialCapacityLimits(value.items, `${path}[]`, found);
+  for (const [index, child] of (value.anyOf ?? []).entries()) artificialCapacityLimits(child, `${path}.anyOf[${index}]`, found);
   return found;
 }
 
-test("no current public schema publishes a string bound above the scanner line boundary", async () => {
+test("public reconstruction schemas contain no artificial narrative or collection ceilings", async () => {
   for (const name of [`reconstruction-packet-${RECONSTRUCTION_PACKET_SCHEMA_VERSION}`, `project-state-reconstruction-${PROJECT_STATE_RECONSTRUCTION_SCHEMA_VERSION}`]) {
-    assert.deepEqual(stringsWithOversizedPublishedBounds(await schema(name)), [], name);
+    const limits = artificialCapacityLimits(await schema(name)).filter((path) => !/(?:^|[._])(?:[a-z_]*id|[a-z_]*ids)(?:$|\[|\.)|ref|handle|fingerprint|analyst|concept_key/.test(path));
+    assert.deepEqual(limits, [], `${name}: ${limits.join(", ")}`);
   }
 });
 
-test("the Project State public relative-path contract excludes embedded line breaks", async () => {
+test("Project State relative paths remain privacy-safe without a size ceiling", async () => {
   const published = await schema(`project-state-reconstruction-${PROJECT_STATE_RECONSTRUCTION_SCHEMA_VERSION}`);
   const node = published.properties.provenance_index.items.properties.relative_path;
   const relativePath = node.type === "string" ? node : node.anyOf.find((variant: any) => variant.type === "string");
-  assert.equal(relativePath.maxLength, 300);
-  assert.match(relativePath.pattern, /\\r/);
-  assert.match(relativePath.pattern, /\\n/);
-  assert.match(relativePath.pattern, /2028/);
-  assert.match(relativePath.pattern, /2029/);
+  assert.equal(relativePath.maxLength, undefined);
+  assert.match(relativePath.pattern, /\\r/); assert.match(relativePath.pattern, /\\n/); assert.match(relativePath.pattern, /2028/); assert.match(relativePath.pattern, /2029/);
 });
 
 const providers = ["chatgpt", "claude", "codex"] as const;
-
-function historical(provider: typeof providers[number]) {
-  const packet: any = clone(validPacket());
-  const context: any = clone(validContext());
-  packet.provider = provider;
-  packet.provider_provenance.provider = provider;
-  context.expected_provider = provider;
-  return { packet, context };
-}
-
-const narrativeTargets = [
-  { name: "project summary", path: "project_summary.description", set: (packet: any, value: string) => { packet.project_summary.description = value; } },
-  { name: "coverage limitation", path: "coverage_perimeter.limitations.0", set: (packet: any, value: string) => { packet.coverage_perimeter.limitations = [value]; } },
-  { name: "provenance limitation", path: "provenance_index.0.limitations.0", set: (packet: any, value: string) => { packet.provenance_index[0].limitations = [value]; } },
-  { name: "evidence description", path: "evidence.meaningful_moments.0.description", set: (packet: any, value: string) => { packet.evidence.meaningful_moments[0].description = value; } },
-  { name: "resulting state", path: "evidence.meaningful_moments.0.resulting_state", set: (packet: any, value: string) => { packet.evidence.meaningful_moments[0].resulting_state = value; } },
-  { name: "decision outcome", path: "evidence.decisions.0.outcome", set: (packet: any, value: string) => { packet.evidence.decisions[0].outcome = value; } },
-  { name: "validation method", path: "evidence.validation_and_outcomes.0.validation_method", set: (packet: any, value: string) => { packet.evidence.validation_and_outcomes[0].validation_method = value; } },
-  { name: "validation outcome", path: "evidence.validation_and_outcomes.0.outcome", set: (packet: any, value: string) => { packet.evidence.validation_and_outcomes[0].outcome = value; } },
-  { name: "capability narrative", path: "evidence.capability_evidence.0.narrative_basis", set: (packet: any, value: string) => { packet.evidence.capability_evidence[0].narrative_basis = value; } },
-  { name: "origin basis", path: "evidence.origin_traces.0.generalized_basis", set: (packet: any, value: string) => { packet.evidence.origin_traces[0].generalized_basis = value; } },
-  { name: "provider limitation", path: "provider_limitations.0", set: (packet: any, value: string) => { packet.provider_limitations = [value]; } },
-] as const;
-
-test("Reconstruction narrative fields expose the same reachable 420-character boundary for every provider", async () => {
-  for (const provider of providers) for (const target of narrativeTargets) {
-    const atLimit = historical(provider);
-    target.set(atLimit.packet, generalizedProse(PROTOCOL_MAX_LINE_LENGTH));
-    assert.equal((await acceptHistoricalReconstruction(atLimit.packet, atLimit.context)).status, "accept", `${provider}: ${target.name} at limit`);
-
-    const overLimit = historical(provider);
-    target.set(overLimit.packet, generalizedProse(PROTOCOL_MAX_LINE_LENGTH + 1));
-    const result = await acceptHistoricalReconstruction(overLimit.packet, overLimit.context);
-    assert.equal(result.status, "reject", `${provider}: ${target.name} over limit`);
-    if (result.status === "reject") {
-      assert.equal(result.category, "invalid_schema", `${provider}: ${target.name}: ${JSON.stringify(result.issues)}`);
-      assert.ok(result.issues.some((issue) => issue.startsWith(`${target.path}:`) && issue.includes(String(PROTOCOL_MAX_LINE_LENGTH))), `${provider}: ${target.name}: ${JSON.stringify(result.issues)}`);
-      assert.ok(result.issues.every((issue) => !issue.includes("source_sized_line")), JSON.stringify(result.issues));
-    }
-  }
-});
-
-test("Reconstruction narrative fields reject line breaks with field-specific content-free diagnostics", async () => {
-  for (const provider of providers) for (const target of narrativeTargets) {
-    const { packet, context } = historical(provider);
-    target.set(packet, "generalized first line\ngeneralized second line");
+test("multi-megabyte legitimate historical narrative is accepted and deterministically segmented for every analyst", async () => {
+  const narrative = generalizedProse(2_400_000);
+  for (const provider of providers) {
+    const packet: any = clone(validPacket()); const context: any = clone(validContext());
+    packet.provider = provider; packet.provider_provenance.provider = provider; context.expected_provider = provider;
+    packet.project_summary.description = narrative;
     const result = await acceptHistoricalReconstruction(packet, context);
-    assert.equal(result.status, "reject");
-    if (result.status === "reject") {
-      assert.equal(result.category, "invalid_schema");
-      assert.ok(result.issues.some((issue) => issue.startsWith(`${target.path}:`)), JSON.stringify(result.issues));
-      assert.ok(result.issues.every((issue) => !issue.includes("generalized first")), JSON.stringify(result.issues));
+    assert.equal(result.status, "accept", provider);
+    if (result.status === "accept") {
+      assert.ok(result.accepted.canonical_segments.length > 10);
+      assert.equal(await reassembleLogicalContent(result.accepted.canonical_segment_manifest, result.accepted.canonical_segments), result.accepted.canonical_packet);
+      assert.equal(result.accepted.canonical_segment_manifest.logical_content_sha256, result.accepted.accepted_packet_digest);
     }
   }
 });
 
-test("normalization precedes the Reconstruction narrative boundary", async () => {
-  const atLimit = historical("claude");
-  atLimit.packet.project_summary.description = `${"ﬃ ".repeat(104)}ﬃx`;
-  assert.equal((await acceptHistoricalReconstruction(atLimit.packet, atLimit.context)).status, "accept");
-  atLimit.packet.project_summary.description += "ﬃ";
-  const result = await acceptHistoricalReconstruction(atLimit.packet, atLimit.context);
-  assert.equal(result.status, "reject");
-  if (result.status === "reject") assert.equal(result.category, "invalid_schema");
+test("large legitimate prose is never a privacy finding merely because of length or line count", () => {
+  assert.deepEqual(privacyIssuesFor({ narrative: generalizedProse(2_400_000) }, "probe"), []);
+  assert.deepEqual(privacyIssuesFor({ narrative: `${generalizedProse(600_000)}\n${generalizedProse(600_000)}` }, "probe"), []);
 });
 
-test("the scanner's direct line rule remains fail-closed at 421 characters", () => {
-  assert.deepEqual(privacyIssuesFor({ narrative: generalizedProse(PROTOCOL_MAX_LINE_LENGTH) }, "probe"), []);
-  assert.deepEqual(privacyIssuesFor({ narrative: generalizedProse(PROTOCOL_MAX_LINE_LENGTH + 1) }, "probe"), ["probe.narrative: source_sized_line"]);
-  assert.deepEqual(privacyIssuesFor({ narrative: `${generalizedProse(PROTOCOL_MAX_LINE_LENGTH)}\u2028x` }, "probe"), []);
-  assert.deepEqual(privacyIssuesFor({ narrative: `${generalizedProse(PROTOCOL_MAX_LINE_LENGTH + 1)}\u2028x` }, "probe"), ["probe.narrative: source_sized_line"]);
+test("actual prohibited content still fails independently of size", async () => {
+  const packet: any = clone(validPacket());
+  packet.project_summary.description = `${generalizedProse(800_000)}\npassword=distinctivesecretvalue`;
+  const result = await acceptHistoricalReconstruction(packet, validContext());
+  assert.equal(result.status, "reject");
+  if (result.status === "reject") { assert.equal(result.category, "privacy_rejection"); assert.ok(result.issues.some((issue) => issue.includes("credential_assignment"))); }
 });
