@@ -11,14 +11,15 @@ const explicitSourceSyntax = [
   /\bdef\s+[A-Za-z_][\w]*\s*\([^)]{0,160}\)\s*:/,
   /\b(?:SELECT\s+.+\s+FROM|INSERT\s+INTO|CREATE\s+TABLE|UPDATE\s+\w+\s+SET)\b/i,
   /\b(?:console\.log|print|printf|System\.out\.println)\s*\(/,
+  /(?:^|[;{}]\s*)\b(?:if|for|while|switch)\s*\([^)]{1,240}\)\s*\{/,
+  /\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*[^\n;]{1,240};/,
+  /\breturn\s+(?:await\s+)?(?:[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*(?:\([^)]{0,240}\))?|["'`][^\n]{0,240}["'`]|\[[^\n]{0,240}\]|\{[^\n]{0,240}\})\s*;/,
 ];
 
 function looksLikeSourceCode(value: string): boolean {
   if (explicitSourceSyntax.some((pattern) => pattern.test(value))) return true;
-  const structuralSignals = (value.match(/[{};]|=>/g) ?? []).length;
-  const keywordSignals = (value.match(/\b(?:const|let|var|function|class|interface|import|export|return|def|lambda|SELECT|INSERT|UPDATE|CREATE TABLE)\b/gi) ?? []).length;
   const quotedObjectKeys = (value.match(/["'][^"'\r\n]{1,80}["']\s*:/g) ?? []).length;
-  return (structuralSignals >= 2 && keywordSignals >= 2) || (structuralSignals >= 4 && keywordSignals >= 1) || (value.trimStart().startsWith("{") && quotedObjectKeys >= 2);
+  return value.trimStart().startsWith("{") && quotedObjectKeys >= 2;
 }
 
 function looksLikeSingleLineFilePayload(value: string): boolean {

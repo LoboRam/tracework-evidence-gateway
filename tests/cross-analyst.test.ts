@@ -176,6 +176,21 @@ test("ordinary generalized limitations remain usable across fields and analysts"
   }
 });
 
+test("sanitized technical reconstruction narrative is not mistaken for source code", async () => {
+  const legitimate = [
+    "The import and export layers remained compatible; the interface returned version 2.1; release metadata described class boundaries without exposing implementation text.",
+    "The parser, API adapter, and worker components changed together; commit metadata named the function-oriented subsystem and the return path, but no file content or diff was retained.",
+    "Tags v1.8.0 and v1.8.1 identify repository checkpoints; the configuration terminology includes const, class, and interface names only as generalized component labels.",
+  ];
+  for (const provider of analysts) for (const value of legitimate) {
+    const packet: any = clone(validPacket()); const context: any = clone(validContext());
+    packet.provider = provider; packet.provider_provenance.provider = provider; context.expected_provider = provider;
+    packet.project_summary.description = value;
+    const result = await acceptHistoricalReconstruction(packet, context);
+    assert.equal(result.status, "accept", `${provider}: ${JSON.stringify(result)}`);
+  }
+});
+
 test("Project State relative paths reject absolute, traversal, credential, and version-control paths", async () => {
   for (const provider of analysts) for (const value of ["C:/workspace/package.json", "/workspace/package.json", "../outside/package.json", ".env.production", ".git/config", ".hg/store", ".svn/entries"]) {
     const packet: any = clone(projectStatePacket(provider));

@@ -15,7 +15,7 @@ Tracework production is not wholly open source. Authentication, account/project 
 - Project State Reconstruction Schema: `1.1.0`
 - Project State Reconstruction Protocol: `project-state-1.0`
 - Snapshot fingerprint algorithm: `tracework.ps.snapshot.sha256-inventory-v1`
-- Privacy-contract compatibility: `3.0.0`
+- Privacy-contract compatibility: `3.0.1`
 
 Legitimate generalized reconstruction content has no schema-level narrative or item-count ceiling. Canonical accepted content is deterministically divided into ordered UTF-8 segments for physical storage; the full-content digest remains authoritative across reassembly and receipt verification.
 - Receipt algorithm: Ed25519, with production signing performed through AWS KMS
